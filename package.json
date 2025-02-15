@@ -1,0 +1,18 @@
+{
+  "name": "newsbot-js",
+  "version": "1.0.0",
+  "description": "refactored newsbot.py",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Ecbiv",
+  "license": "ISC",
+  "dependencies": {
+    "body-parser": "^1.20.3",
+    "cors": "^2.8.5",
+    "discord.js": "^14.18.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2"
+  }
+}
