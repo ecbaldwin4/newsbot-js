@@ -2,7 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 const { getRandomEndpoint } = require('./helpers');
-const interval_in_minutes = 0.5;
+const interval_in_minutes = 1.5;
 const url = process.env.ENDPOINT_URL;
 const targetChannelsFile = './data/target_channels.csv';
 
@@ -56,40 +56,47 @@ client.once('ready', () => {
             })
             .then(response => response.json())
             .then(data => {
-                // Format the message
-                const messageContent = `Title: ${data.title}\nURL: ${data.url}`;
+                console.log("Data from API:", data);  // Add this log to inspect the received data
+                
+                // Ensure the data contains title and URL
+                if (data.title && data.url) {
+                    const messageContent = `Title: ${data.title}\nURL: ${data.url}`;
 
-                // Test functionality: send to test channel only when isTesting is true
-                if (isTesting) {
-                    const testChannelId = process.env.TEST_CHANNEL; // Ensure this environment variable is set
-                    if (testChannelId) {
-                        const testChannel = client.channels.cache.get(testChannelId);
-                        if (testChannel) {
-                            console.log(`Sending message to test channel: ${testChannel.name}`);
-                            testChannel.send(messageContent).catch(err => console.error(`Error sending message to test channel:`, err));
+                    // Test functionality: send to test channel only when isTesting is true
+                    if (isTesting) {
+                        const testChannelId = process.env.TEST_CHANNEL; // Ensure this environment variable is set
+                        if (testChannelId) {
+                            const testChannel = client.channels.cache.get(testChannelId);
+                            if (testChannel) {
+                                console.log(`Sending message to test channel: ${testChannel.name}`);
+                                testChannel.send(messageContent).catch(err => console.error(`Error sending message to test channel:`, err));
+                            } else {
+                                console.error(`Test channel not found with ID: ${testChannelId}`);
+                            }
                         } else {
-                            console.error(`Test channel not found with ID: ${testChannelId}`);
+                            console.error('TEST_CHANNEL environment variable is not set.');
                         }
                     } else {
-                        console.error('TEST_CHANNEL environment variable is not set.');
+                        // Send message to each target channel using channelId only
+                        targetChannels.forEach(({ channelId }) => {
+                            const channel = client.channels.cache.get(channelId);
+                            if (channel) {
+                                console.log(`Found channel: ${channel.name} (${channel.id})`);
+                                channel.send(messageContent).catch(err => console.error(`Error sending message to channel ${channel.name}:`, err));
+                            } else {
+                                console.error(`Channel not found: ${channelId}`);
+                            }
+                        });
                     }
                 } else {
-                    // Send message to each target channel using channelId only
-                    targetChannels.forEach(({ channelId }) => {
-                        const channel = client.channels.cache.get(channelId);
-                        if (channel) {
-                            console.log(`Found channel: ${channel.name} (${channel.id})`);
-                            channel.send(messageContent).catch(err => console.error(`Error sending message to channel ${channel.name}:`, err));
-                        } else {
-                            console.error(`Channel not found: ${channelId}`);
-                        }
-                    });
+                    console.error("Missing title or URL in the response data.");
                 }
             })
             .catch(err => console.error('Error fetching data:', err));
         }
     }, interval_in_minutes * 60 * 1000); // Adjust interval time here
 });
+
 
 // Respond to messages
 client.on('messageCreate', (message) => {

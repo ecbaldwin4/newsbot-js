@@ -2,12 +2,12 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const cors = require('cors'); 
 const Reddit = require('./endpoint_logic/reddit_source_handling.js');
+require('dotenv').config();
 
 const app = express();
 
 //endpoint logic
 const reddit = new Reddit();
-
 
 app.post('/reddit', async (req, res, next) => {
     try {
@@ -23,7 +23,7 @@ app.post('/reddit', async (req, res, next) => {
             console.log(`Latest Post: ${latestPost.title}`);
             console.log(`URL: ${latestPost.url}`);
             return res.json({
-                title: latestPost.title, //this logic may not work for all endpoints, but we will see...
+                title: latestPost.title, 
                 url: latestPost.url
             });
         } else {
@@ -34,6 +34,11 @@ app.post('/reddit', async (req, res, next) => {
         console.error('Error occurred:', error);
         return res.status(500).json({ error: error.message });
     }
+});
+
+app.post('/congress', async (req, res, next) => {
+//TODO: add logic for congress api call for latest bills
+//the API returns like 250 bills or something, so it isnt as dynamic as the other sources
 });
 
 
