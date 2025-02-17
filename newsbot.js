@@ -5,6 +5,9 @@ const { getRandomEndpoint } = require('./helpers');
 const interval_in_minutes = 1.5;
 const url = process.env.ENDPOINT_URL;
 const targetChannelsFile = './data/target_channels.csv';
+const messageLogFile = './data/messages.txt'; // Path to the file where messages will be logged
+const secretMessage = process.env.secret_message.replace(/^"|"$/g, '');
+const secretReply = process.env.secret_reply.replace(/^"|"$/g, '');
 
 // Initialize the bot
 const client = new Client({
@@ -37,6 +40,12 @@ function loadTargetChannels() {
 function saveTargetChannels() {
     const data = targetChannels.map(entry => entry.channelId).join('\n');
     fs.writeFileSync(targetChannelsFile, data, 'utf8');
+}
+
+// Log messages to a file
+function logMessageToFile(message) {
+    const logData = `${new Date().toISOString()} - Channel: ${message.channel.name} - Author: ${message.author.tag} - Message: ${message.content}\n`;
+    fs.appendFileSync(messageLogFile, logData, 'utf8');
 }
 
 // Bot is ready
@@ -97,9 +106,12 @@ client.once('ready', () => {
     }, interval_in_minutes * 60 * 1000); // Adjust interval time here
 });
 
-
-// Respond to messages
 client.on('messageCreate', (message) => {
+    // Log only messages from users
+    if (message.author.id !== client.user.id) {
+        logMessageToFile(message);
+    }
+
     if (message.content === '!ping') {
         message.reply('Pong!');
     }
@@ -111,12 +123,32 @@ client.on('messageCreate', (message) => {
             targetChannels.push({
                 channelId: message.channel.id
             });
-            // Save to CSV and update in-memory list
             saveTargetChannels();
             message.reply(`This channel (#${message.channel.name}) is now registered for automatic posts.`);
         } else {
             message.reply('This command must be used in a text channel.');
         }
+    }
+
+    // Check if the bot's own post contains certain keywords
+    if (message.author.id === client.user.id) {
+        const keywords = ["maryland", "baltimore", "wes moore"];
+        const content = message.content.toLowerCase();
+    
+        if (keywords.some((keyword) => content.includes(keyword))) {
+            const targetChannel = client.channels.cache.get(process.env.GO_CHANNEL);
+            if (targetChannel) {
+                targetChannel.send(process.env.TYTANIC);
+            } else {
+                console.error("Target channel not found.");
+            }
+        }
+    }
+
+    // Handle secret message
+    if (message.author.id !== client.user.id && message.content.toLowerCase().includes(secretMessage)) {
+        message.channel.send(secretReply);
+        message.react("🇨🇦");
     }
 });
 
