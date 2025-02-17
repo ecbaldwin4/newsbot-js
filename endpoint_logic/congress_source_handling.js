@@ -2,6 +2,7 @@ const fetch = require('node-fetch');
 const fs = require('fs');
 const path = require('path');
 const csv = require('csv-parser');
+const Papa = require('papaparse');
 
 const DATA_FOLDER = path.join(__dirname, '../data');
 const POST_IDS_FILE = path.join(DATA_FOLDER, 'congress_seen_bill.csv');
@@ -16,14 +17,17 @@ class CongressBills {
 
     async fetchBills() {
         try {
-            const response = await fetch(`${this.apiUrl}?api_key=${this.apiKey}`, { method: 'GET' });
+            const requestUrl = `${this.apiUrl}?api_key=${this.apiKey}`;
+            console.log(`Request URL: ${requestUrl}`);
+            
+            const response = await fetch(requestUrl, { method: 'GET' });
             const contentType = response.headers.get('content-type');
 
             if (!contentType || !contentType.includes('application/json')) {
                 const text = await response.text();
                 console.error(`Unexpected response type: ${contentType}`);
                 console.error(`Response body: ${text}`);
-                throw new Error(`Invalid content type. Expected application/json but received ${contentType}.`);
+                throw new Error(`Invalid content type. Expected application/json but received ${contentType}. Response: ${text}`);
             }
 
             if (!response.ok) {
@@ -31,6 +35,7 @@ class CongressBills {
             }
 
             const data = await response.json();
+            //console.log(data);
             return data.bills;
         } catch (error) {
             console.error('Error fetching data:', error);
@@ -56,26 +61,29 @@ class CongressBills {
             url: this.createBillUrl(bill),
             sent: 'false'
         }));
-
-        let oldData = [];
+    
+        const oldData = [];
         if (fs.existsSync(POST_IDS_FILE)) {
-            oldData = fs.readFileSync(POST_IDS_FILE, 'utf-8')
-                .split('\n')
-                .slice(1) // skip the header row
-                .map(row => row.split(','))
-                .map(([billId, title, url, sent]) => ({ billId, title, url, sent }));
+            fs.createReadStream(POST_IDS_FILE)
+                .pipe(csv())
+                .on('data', (row) => {
+                    oldData.push(row);
+                })
+                .on('end', () => {
+                    const dataToWrite = oldData.concat(csvData);
+                    const csvContent = Papa.unparse(dataToWrite, { header: true });
+                    fs.writeFileSync(POST_IDS_FILE, csvContent);
+                });
+        } else {
+            const dataToWrite = csvData;
+            const csvContent = Papa.unparse(dataToWrite, { header: true });
+            fs.writeFileSync(POST_IDS_FILE, csvContent);
         }
-
-        const dataToWrite = oldData.concat(csvData);
-        const csvHeaders = "billId,title,url,sent\n";
-        const csvRows = dataToWrite.map(bill => `${bill.billId},${bill.title},${bill.url},${bill.sent}`).join('\n');
-
-        fs.writeFileSync(POST_IDS_FILE, csvHeaders + csvRows);
-
+    
         newBills.forEach(bill => {
             this.seenBills.set(bill.url, { sent: false, title: bill.title, url: this.createBillUrl(bill) });
         });
-
+    
         return csvData;
     }
 
@@ -95,16 +103,15 @@ class CongressBills {
             sent: sent.toString()
         }));
 
-        const csvHeaders = "billId,title,url,sent\n";
-        const csvRows = dataToWrite.map(bill => `${bill.billId},${bill.title},${bill.url},${bill.sent}`).join('\n');
-
-        fs.writeFileSync(POST_IDS_FILE, csvHeaders + csvRows);
+        const csvContent = Papa.unparse(dataToWrite, { header: true });
+        fs.writeFileSync(POST_IDS_FILE, csvContent);
     }
 
     createBillUrl(bill) {
         const congressNumber = this.formatCongressNumber(bill.congress);
         const chamber = bill.originChamber.toLowerCase() === 'house' ? 'house' : 'senate';
-        return `https://www.congress.gov/bill/${congressNumber}-congress/${chamber}-bill/${bill.number}/text`;
+        const billType = bill.type.toLowerCase() === 'hres' ? 'resolution' : 'bill';
+        return `https://www.congress.gov/bill/${congressNumber}-congress/${chamber}-${billType}/${bill.number}`;
     }
 
     formatCongressNumber(congress) {
@@ -116,6 +123,7 @@ class CongressBills {
     getBillToRespond() {
         for (const [billId, { sent, title, url }] of this.seenBills.entries()) {
             if (!sent) {
+                this.markBillAsSent(billId); // Mark the bill as sent
                 return { billId, title, url };
             }
         }

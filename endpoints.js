@@ -61,8 +61,7 @@ app.post('/congress', async (req, res, next) => {
         }
     } catch (error) {
         next(error);
-    }
-});
+    }});
 
 
 
