@@ -48,7 +48,12 @@ async function fetchHazardousAsteroids() {
         for (const date in data.near_earth_objects) {
             for (const asteroid of data.near_earth_objects[date]) {
                 if (asteroid.is_potentially_hazardous_asteroid) {
-                    hazardousAsteroids.push(asteroid);
+                    const approachDate = new Date(asteroid.close_approach_data[0].close_approach_date_full);
+                    const today = new Date();
+
+                    if (approachDate >= today) {
+                        hazardousAsteroids.push(asteroid);
+                    }
                 }
             }
         }
