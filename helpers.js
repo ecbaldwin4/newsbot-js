@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const axios = require('axios');
 
 // Function to get a random endpoint from the CSV file
 function getRandomEndpoint() {
@@ -27,4 +28,37 @@ function getRandomEndpoint() {
     }
 }
 
-module.exports = { getRandomEndpoint };
+
+async function fetchHazardousAsteroids() {
+    const NASA_API_URL = 'https://api.nasa.gov/neo/rest/v1/feed';
+    const endDate = new Date().toISOString().split('T')[0];
+    const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    try {
+        const response = await axios.get(NASA_API_URL, {
+            params: {
+                start_date: startDate,
+                end_date: endDate,
+                api_key: process.env.NASA_TOKEN
+            }
+        });
+
+        const data = response.data;
+        const hazardousAsteroids = [];
+
+        for (const date in data.near_earth_objects) {
+            for (const asteroid of data.near_earth_objects[date]) {
+                if (asteroid.is_potentially_hazardous_asteroid) {
+                    hazardousAsteroids.push(asteroid);
+                }
+            }
+        }
+
+        return hazardousAsteroids;
+    } catch (error) {
+        console.error('Error fetching asteroid data:', error);
+        return [];
+    }
+}
+
+
+module.exports = { getRandomEndpoint, fetchHazardousAsteroids };

@@ -1,7 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
-const { getRandomEndpoint } = require('./helpers');
+const { getRandomEndpoint, fetchHazardousAsteroids } = require('./helpers');
 let interval_in_minutes = 1.25;
 const url = process.env.ENDPOINT_URL;
 const targetChannelsFile = './data/target_channels.csv';
@@ -109,7 +109,7 @@ client.once('ready', () => {
     }, interval_in_minutes * 60 * 1000); // Adjust interval time here
 });
 
-client.on('messageCreate', (message) => {
+client.on('messageCreate', async (message) => {
     // Log only messages from users
     if (message.author.id !== client.user.id) {
         logMessageToFile(message);
@@ -130,6 +130,34 @@ client.on('messageCreate', (message) => {
             message.reply(`This channel (#${message.channel.name}) is now registered for automatic posts.`);
         } else {
             message.reply('This command must be used in a text channel.');
+        }
+    }
+
+    if (message.content === '!asteroids') {
+        const hazardousAsteroids = await fetchHazardousAsteroids();
+        message.channel.send("The following asteroids are approaching Earth and have been labeled Potentially Hazardous by NASA.")
+
+        if (hazardousAsteroids.length > 0) {
+            for (const asteroid of hazardousAsteroids) {
+                const name = asteroid.name;
+                const url = asteroid.nasa_jpl_url;
+                const diameter = asteroid.estimated_diameter.miles.estimated_diameter_max;
+                const approachDate = asteroid.close_approach_data[0].close_approach_date_full;
+                const velocity = asteroid.close_approach_data[0].relative_velocity.miles_per_hour;
+                const missDistance = asteroid.close_approach_data[0].miss_distance.miles;
+                
+                const messageContent = `
+                    **Name**: ${name}
+                    **NASA URL**: ${url}
+                    **Estimated Diameter (max)**: ${diameter} miles
+                    **Close Approach Date**: ${approachDate}
+                    **Relative Velocity**: ${velocity} miles per hour
+                    **Miss Distance**: ${missDistance} miles
+                `;
+                await message.channel.send(messageContent);
+            }
+        } else {
+            await message.channel.send("No potentially hazardous asteroids found.");
         }
     }
 
