@@ -2,7 +2,7 @@ require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const fs = require('fs');
 const { getRandomEndpoint } = require('./helpers');
-const interval_in_minutes = 1.5;
+let interval_in_minutes = 1.25;
 const url = process.env.ENDPOINT_URL;
 const targetChannelsFile = './data/target_channels.csv';
 const messageLogFile = './data/messages.txt'; // Path to the file where messages will be logged
@@ -20,6 +20,9 @@ const client = new Client({
 
 let targetChannels = [];
 const isTesting = false; // Set to `true` to only send to the test channel
+if(isTesting){
+    interval_in_minutes=0.1;
+}
 
 // Read target channels from the CSV file at the start
 function loadTargetChannels() {
