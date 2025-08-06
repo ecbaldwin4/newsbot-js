@@ -45,12 +45,6 @@ function saveTargetChannels() {
     fs.writeFileSync(targetChannelsFile, data, 'utf8');
 }
 
-// Log messages to a file
-function logMessageToFile(message) {
-    const logData = `${new Date().toISOString()} - Channel: ${message.channel.name} - Author: ${message.author.tag} - Message: ${message.content}\n`;
-    fs.appendFileSync(messageLogFile, logData, 'utf8');
-}
-
 // Bot is ready
 client.once('ready', () => {
     console.log(`Logged in as ${client.user.tag}!`);
@@ -110,11 +104,6 @@ client.once('ready', () => {
 });
 
 client.on('messageCreate', async (message) => {
-    // Log only messages from users
-    if (message.author.id !== client.user.id) {
-        logMessageToFile(message);
-    }
-
     if (message.content === '!ping') {
         message.reply('Pong!');
     }
@@ -135,9 +124,10 @@ client.on('messageCreate', async (message) => {
 
     if (message.content === '!asteroids') {
         const hazardousAsteroids = await fetchHazardousAsteroids();
-        message.channel.send("The following asteroids are approaching Earth and have been labeled Potentially Hazardous by NASA.")
+        
 
         if (hazardousAsteroids.length > 0) {
+            message.channel.send("The following asteroids are approaching Earth and have been labeled Potentially Hazardous by NASA.")
             for (const asteroid of hazardousAsteroids) {
                 const name = asteroid.name;
                 const url = asteroid.nasa_jpl_url;
@@ -157,7 +147,7 @@ client.on('messageCreate', async (message) => {
                 await message.channel.send(messageContent);
             }
         } else {
-            await message.channel.send("No potentially hazardous asteroids found.");
+            await message.channel.send("No potentially hazardous asteroids found...for now.");
         }
     }
 
