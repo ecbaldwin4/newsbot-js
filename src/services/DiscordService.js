@@ -51,6 +51,7 @@ class DiscordService extends EventEmitter {
                 await this.handleMessage(message);
             } catch (error) {
                 this.logger.error('Error handling Discord message', error);
+                // Continue operating - don't let one message crash the bot
             }
         });
 
@@ -67,39 +68,55 @@ class DiscordService extends EventEmitter {
     }
 
     async handleMessage(message) {
-        // Handle ping command
-        if (message.content === '!ping') {
-            await message.reply('Pong!');
-            return;
-        }
+        try {
+            // Skip bot messages (except our own for keyword checking)
+            if (message.author.bot && message.author.id !== this.client.user.id) {
+                return;
+            }
 
-        // Handle set channel command
-        if (message.content === '!setchannel') {
-            await this.handleSetChannel(message);
-            return;
-        }
+            // Skip messages without text content (GIFs, images, embeds, etc.)
+            if (!message.content || message.content.trim() === '') {
+                return;
+            }
 
-        // Handle asteroid command  
-        if (message.content === '!asteroids') {
-            this.emit('asteroidRequest', message);
-            return;
-        }
+            // Handle ping command
+            if (message.content === '!ping') {
+                await message.reply('Pong!');
+                return;
+            }
 
-        // Handle congress command
-        if (message.content === '!congress') {
-            this.emit('congressRequest', message);
-            return;
-        }
+            // Handle set channel command
+            if (message.content === '!setchannel') {
+                await this.handleSetChannel(message);
+                return;
+            }
 
-        // Handle bot's own messages for keyword checking
-        if (message.author.id === this.client.user.id) {
-            await this.handleBotMessage(message);
-            return;
-        }
+            // Handle asteroid command  
+            if (message.content === '!asteroids') {
+                this.emit('asteroidRequest', message);
+                return;
+            }
 
-        // Handle secret message
-        if (message.author.id !== this.client.user.id && this.secretsConfig.message) {
-            await this.handleSecretMessage(message);
+            // Handle congress command
+            if (message.content === '!congress') {
+                this.emit('congressRequest', message);
+                return;
+            }
+
+            // Handle bot's own messages for keyword checking
+            if (message.author.id === this.client.user.id) {
+                await this.handleBotMessage(message);
+                return;
+            }
+
+            // Handle secret message (only for text messages)
+            if (message.author.id !== this.client.user.id && this.secretsConfig.message) {
+                await this.handleSecretMessage(message);
+            }
+
+        } catch (error) {
+            this.logger.error('Error in handleMessage', error);
+            // Don't re-throw - we want the bot to continue running
         }
     }
 
@@ -137,13 +154,24 @@ class DiscordService extends EventEmitter {
     }
 
     async handleSecretMessage(message) {
-        if (message.content.toLowerCase().includes(this.secretsConfig.message.toLowerCase())) {
-            try {
-                await message.channel.send(this.secretsConfig.reply);
-                await message.react("🇨🇦");
-            } catch (error) {
-                this.logger.error('Error handling secret message', error);
+        try {
+            // Ensure both message content and secret message exist and are strings
+            if (!this.secretsConfig.message || 
+                !message.content || 
+                typeof message.content !== 'string' ||
+                typeof this.secretsConfig.message !== 'string') {
+                return;
             }
+
+            if (message.content.toLowerCase().includes(this.secretsConfig.message.toLowerCase())) {
+                if (this.secretsConfig.reply) {
+                    await message.channel.send(this.secretsConfig.reply);
+                }
+                await message.react("🇨🇦");
+            }
+        } catch (error) {
+            this.logger.error('Error handling secret message', error);
+            // Don't re-throw - continue operation
         }
     }
 
