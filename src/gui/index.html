@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NewsBot Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            color: white;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-left: 10px;
+        }
+
+        .status-online { background-color: #4CAF50; }
+        .status-offline { background-color: #f44336; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+        }
+
+        .card h3 {
+            color: #5a67d8;
+            margin-bottom: 15px;
+            border-bottom: 2px solid #e2e8f0;
+            padding-bottom: 10px;
+        }
+
+        .stat {
+            display: flex;
+            justify-content: space-between;
+            margin: 8px 0;
+        }
+
+        .stat-label {
+            color: #718096;
+        }
+
+        .stat-value {
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .button {
+            background: #5a67d8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background 0.2s ease;
+            margin: 2px;
+        }
+
+        .button:hover {
+            background: #4c51bf;
+        }
+
+        .button.success {
+            background: #48bb78;
+        }
+
+        .button.success:hover {
+            background: #38a169;
+        }
+
+        .button.danger {
+            background: #f56565;
+        }
+
+        .button.danger:hover {
+            background: #e53e3e;
+        }
+
+        .button:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+
+        .input-group {
+            margin: 10px 0;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #4a5568;
+            font-weight: 500;
+        }
+
+        .input-group input, .input-group select {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .toggle {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+        }
+
+        .toggle input[type="checkbox"] {
+            margin-right: 8px;
+        }
+
+        .sources-list {
+            max-height: 200px;
+            overflow-y: auto;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+        }
+
+        .source-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px;
+            border-bottom: 1px solid #f7fafc;
+        }
+
+        .source-item:last-child {
+            border-bottom: none;
+        }
+
+        .source-info {
+            font-size: 12px;
+            color: #718096;
+        }
+
+        .alert {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+
+        .alert.success {
+            background: #f0fff4;
+            border: 1px solid #9ae6b4;
+            color: #2f855a;
+        }
+
+        .alert.error {
+            background: #fed7d7;
+            border: 1px solid #feb2b2;
+            color: #c53030;
+        }
+
+        .threshold-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+
+        .loading {
+            text-align: center;
+            color: #718096;
+            padding: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 NewsBot Control Panel</h1>
+            <p>Real-time monitoring and control of your news aggregation bot</p>
+        </div>
+
+        <div id="loading" class="loading">
+            Loading bot status...
+        </div>
+
+        <div id="main-content" class="grid" style="display: none;">
+            <!-- Bot Status Card -->
+            <div class="card">
+                <h3>🔧 Bot Status</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="bot-status">
+                        <span id="status-text">Unknown</span>
+                        <span class="status-indicator" id="status-indicator"></span>
+                    </span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Discord:</span>
+                    <span class="stat-value" id="discord-status">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Interval:</span>
+                    <span class="stat-value" id="interval">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Active Endpoints:</span>
+                    <span class="stat-value" id="active-endpoints">Unknown</span>
+                </div>
+            </div>
+
+            <!-- Vector Embedding Control -->
+            <div class="card">
+                <h3>🧠 Vector Embedding</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="embedding-status">Unknown</span>
+                </div>
+                <div id="embedding-stats" style="display: none;">
+                    <div class="stat">
+                        <span class="stat-label">Headlines Cached:</span>
+                        <span class="stat-value" id="headlines-count">0</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-label">Embeddings Cached:</span>
+                        <span class="stat-value" id="embeddings-count">0</span>
+                    </div>
+                    <div class="input-group">
+                        <label>Similarity Threshold: <span id="threshold-value">0.85</span></label>
+                        <input type="range" class="threshold-slider" id="threshold-slider" 
+                               min="0.5" max="1.0" step="0.01" value="0.85">
+                    </div>
+                </div>
+                <div class="button-group">
+                    <button class="button success" id="enable-embedding" onclick="toggleEmbedding(true)">Enable</button>
+                    <button class="button danger" id="disable-embedding" onclick="toggleEmbedding(false)">Disable</button>
+                    <button class="button" onclick="clearEmbeddingCache()">Clear Cache</button>
+                </div>
+            </div>
+
+            <!-- Reddit Endpoint Control -->
+            <div class="card">
+                <h3>📰 Reddit Endpoint</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="reddit-status">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Weight:</span>
+                    <span class="stat-value" id="reddit-weight">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Sources:</span>
+                    <span class="stat-value" id="reddit-sources-count">Unknown</span>
+                </div>
+                <div class="input-group">
+                    <label>Weight:</label>
+                    <input type="number" id="reddit-weight-input" min="0" max="10" step="0.1" value="1">
+                    <button class="button" onclick="updateWeight('reddit')">Update</button>
+                </div>
+                <div class="button-group">
+                    <button class="button success" onclick="toggleEndpoint('reddit', true)">Enable</button>
+                    <button class="button danger" onclick="toggleEndpoint('reddit', false)">Disable</button>
+                    <button class="button" onclick="fetchNews('reddit')">Fetch Now</button>
+                </div>
+            </div>
+
+            <!-- Congress Endpoint Control -->
+            <div class="card">
+                <h3>🏛️ Congress Endpoint</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="congress-status">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Weight:</span>
+                    <span class="stat-value" id="congress-weight">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Current Congress:</span>
+                    <span class="stat-value" id="current-congress">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">API Configured:</span>
+                    <span class="stat-value" id="congress-api">Unknown</span>
+                </div>
+                <div class="input-group">
+                    <label>Weight:</label>
+                    <input type="number" id="congress-weight-input" min="0" max="10" step="0.1" value="1">
+                    <button class="button" onclick="updateWeight('congress')">Update</button>
+                </div>
+                <div class="button-group">
+                    <button class="button success" onclick="toggleEndpoint('congress', true)">Enable</button>
+                    <button class="button danger" onclick="toggleEndpoint('congress', false)">Disable</button>
+                    <button class="button" onclick="fetchNews('congress')">Fetch Now</button>
+                </div>
+            </div>
+
+            <!-- Reddit Sources Management -->
+            <div class="card">
+                <h3>📋 Reddit Sources</h3>
+                <div id="sources-container">
+                    <div class="sources-list" id="sources-list">
+                        <!-- Sources will be populated here -->
+                    </div>
+                    <div class="input-group">
+                        <label>Author:</label>
+                        <input type="text" id="new-author" placeholder="any, or specific username" value="any">
+                    </div>
+                    <div class="input-group">
+                        <label>JSON URL:</label>
+                        <input type="url" id="new-url" placeholder="https://reddit.com/r/news/new.json">
+                    </div>
+                    <button class="button success" onclick="addSource()">Add Source</button>
+                    <button class="button" onclick="loadSources()">Refresh</button>
+                </div>
+            </div>
+
+            <!-- Manual Controls -->
+            <div class="card">
+                <h3>🎮 Manual Controls</h3>
+                <div class="button-group">
+                    <button class="button" onclick="fetchNews('reddit')">Fetch Reddit</button>
+                    <button class="button" onclick="fetchNews('congress')">Fetch Congress</button>
+                    <button class="button" onclick="refreshStatus()">Refresh Status</button>
+                </div>
+                <div id="manual-result" class="alert" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentStatus = null;
+
+        // Initialize the GUI
+        document.addEventListener('DOMContentLoaded', function() {
+            loadStatus();
+            loadSources();
+            setInterval(loadStatus, 30000); // Auto-refresh every 30 seconds
+            
+            // Setup threshold slider
+            const slider = document.getElementById('threshold-slider');
+            const valueSpan = document.getElementById('threshold-value');
+            
+            slider.addEventListener('input', function() {
+                valueSpan.textContent = this.value;
+            });
+            
+            slider.addEventListener('change', function() {
+                updateThreshold(this.value);
+            });
+        });
+
+        async function loadStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const status = await response.json();
+                currentStatus = status;
+                
+                updateStatusUI(status);
+                
+                document.getElementById('loading').style.display = 'none';
+                document.getElementById('main-content').style.display = 'grid';
+            } catch (error) {
+                console.error('Error loading status:', error);
+                showAlert('Error loading bot status: ' + error.message, 'error');
+            }
+        }
+
+        function updateStatusUI(status) {
+            // Bot Status
+            document.getElementById('status-text').textContent = status.isRunning ? 'Running' : 'Stopped';
+            document.getElementById('status-indicator').className = 
+                'status-indicator ' + (status.isRunning ? 'status-online' : 'status-offline');
+            
+            document.getElementById('discord-status').textContent = 
+                status.discordConnected ? 'Connected' : 'Disconnected';
+            
+            document.getElementById('interval').textContent = status.intervalMinutes + ' minutes';
+            document.getElementById('active-endpoints').textContent = 
+                status.enabledEndpoints.join(', ') + ` (${status.enabledEndpoints.length}/${status.totalEndpoints})`;
+
+            // Reddit Endpoint
+            const reddit = status.endpoints?.reddit || {};
+            document.getElementById('reddit-status').textContent = reddit.enabled ? 'Enabled' : 'Disabled';
+            document.getElementById('reddit-weight').textContent = reddit.weight || 0;
+            document.getElementById('reddit-sources-count').textContent = reddit.sources || 0;
+            document.getElementById('reddit-weight-input').value = reddit.weight || 1;
+
+            // Congress Endpoint
+            const congress = status.endpoints?.congress || {};
+            document.getElementById('congress-status').textContent = congress.enabled ? 'Enabled' : 'Disabled';
+            document.getElementById('congress-weight').textContent = congress.weight || 0;
+            document.getElementById('current-congress').textContent = congress.currentCongress || 'Unknown';
+            document.getElementById('congress-api').textContent = congress.apiConfigured ? 'Yes' : 'No';
+            document.getElementById('congress-weight-input').value = congress.weight || 1;
+
+            // Vector Embedding
+            const embedding = reddit.vectorEmbedding || {};
+            document.getElementById('embedding-status').textContent = embedding.enabled ? 'Enabled' : 'Disabled';
+            
+            if (embedding.enabled) {
+                document.getElementById('embedding-stats').style.display = 'block';
+                document.getElementById('headlines-count').textContent = embedding.totalHeadlines || 0;
+                document.getElementById('embeddings-count').textContent = embedding.cacheSize || 0;
+                
+                if (embedding.threshold) {
+                    document.getElementById('threshold-slider').value = embedding.threshold;
+                    document.getElementById('threshold-value').textContent = embedding.threshold;
+                }
+                
+                document.getElementById('enable-embedding').disabled = true;
+                document.getElementById('disable-embedding').disabled = false;
+            } else {
+                document.getElementById('embedding-stats').style.display = 'none';
+                document.getElementById('enable-embedding').disabled = false;
+                document.getElementById('disable-embedding').disabled = true;
+            }
+        }
+
+        async function toggleEmbedding(enable) {
+            const action = enable ? 'enable' : 'disable';
+            
+            try {
+                const response = await fetch(`/api/vector-embedding/${action}`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadStatus(); // Refresh status
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error toggling vector embedding: ' + error.message, 'error');
+            }
+        }
+
+        async function clearEmbeddingCache() {
+            try {
+                const response = await fetch('/api/vector-embedding/clear-cache', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadStatus(); // Refresh status
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error clearing cache: ' + error.message, 'error');
+            }
+        }
+
+        async function updateThreshold(threshold) {
+            try {
+                const response = await fetch('/api/similarity-threshold', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ threshold: parseFloat(threshold) })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(`Threshold updated to ${threshold}`, 'success');
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error updating threshold: ' + error.message, 'error');
+            }
+        }
+
+        async function toggleEndpoint(name, enable) {
+            const action = enable ? 'enable' : 'disable';
+            
+            try {
+                const response = await fetch(`/api/endpoints/${name}/${action}`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadStatus(); // Refresh status
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert(`Error toggling ${name} endpoint: ` + error.message, 'error');
+            }
+        }
+
+        async function updateWeight(endpoint) {
+            const inputId = endpoint + '-weight-input';
+            const weight = document.getElementById(inputId).value;
+            
+            try {
+                const response = await fetch(`/api/endpoints/${endpoint}/weight`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ weight: parseFloat(weight) })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadStatus(); // Refresh status
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error updating weight: ' + error.message, 'error');
+            }
+        }
+
+        async function fetchNews(endpoint) {
+            try {
+                const response = await fetch(`/api/fetch/${endpoint}`, { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.success) {
+                    if (result.newsItem) {
+                        showAlert(`News sent: ${result.newsItem.title.substring(0, 100)}...`, 'success');
+                    } else {
+                        showAlert('No news found from ' + endpoint, 'success');
+                    }
+                } else {
+                    showAlert(result.message || 'Failed to fetch news', 'error');
+                }
+            } catch (error) {
+                showAlert('Error fetching news: ' + error.message, 'error');
+            }
+        }
+
+        async function loadSources() {
+            try {
+                const response = await fetch('/api/reddit/sources');
+                const data = await response.json();
+                
+                const container = document.getElementById('sources-list');
+                container.innerHTML = '';
+                
+                if (data.sources && data.sources.length > 0) {
+                    data.sources.forEach(source => {
+                        const item = document.createElement('div');
+                        item.className = 'source-item';
+                        item.innerHTML = `
+                            <div>
+                                <div><strong>${source.author}</strong></div>
+                                <div class="source-info">${source.url}</div>
+                            </div>
+                            <button class="button danger" onclick="removeSource('${source.url}')">Remove</button>
+                        `;
+                        container.appendChild(item);
+                    });
+                } else {
+                    container.innerHTML = '<div class="source-item">No sources configured</div>';
+                }
+            } catch (error) {
+                showAlert('Error loading sources: ' + error.message, 'error');
+            }
+        }
+
+        async function addSource() {
+            const author = document.getElementById('new-author').value;
+            const url = document.getElementById('new-url').value;
+            
+            if (!author || !url) {
+                showAlert('Please fill in both author and URL', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/reddit/sources', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ author, url })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    document.getElementById('new-author').value = 'any';
+                    document.getElementById('new-url').value = '';
+                    loadSources(); // Refresh sources list
+                    loadStatus(); // Refresh status
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error adding source: ' + error.message, 'error');
+            }
+        }
+
+        async function removeSource(url) {
+            if (!confirm('Are you sure you want to remove this source?')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/reddit/sources', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadSources(); // Refresh sources list
+                    loadStatus(); // Refresh status
+                } else {
+                    showAlert(result.message, 'error');
+                }
+            } catch (error) {
+                showAlert('Error removing source: ' + error.message, 'error');
+            }
+        }
+
+        function refreshStatus() {
+            loadStatus();
+            showAlert('Status refreshed', 'success');
+        }
+
+        function showAlert(message, type) {
+            // Remove existing alerts
+            const existingAlerts = document.querySelectorAll('.alert');
+            existingAlerts.forEach(alert => alert.remove());
+            
+            // Create new alert
+            const alert = document.createElement('div');
+            alert.className = `alert ${type}`;
+            alert.textContent = message;
+            
+            // Add to manual result area if it exists, otherwise to body
+            const resultArea = document.getElementById('manual-result');
+            if (resultArea) {
+                resultArea.replaceWith(alert);
+                alert.id = 'manual-result';
+            } else {
+                document.body.appendChild(alert);
+            }
+            
+            // Auto-hide after 5 seconds
+            setTimeout(() => {
+                if (alert.parentNode) {
+                    alert.style.display = 'none';
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

@@ -3,6 +3,7 @@
 const Config = require('./src/config/Config');
 const DataManager = require('./src/core/DataManager');
 const DiscordService = require('./src/services/DiscordService');
+const WebGUIService = require('./src/services/WebGUIService');
 const NewsBot = require('./src/core/NewsBot');
 const Logger = require('./src/utils/Logger');
 
@@ -14,6 +15,7 @@ const AsteroidEndpoint = require('./src/endpoints/AsteroidEndpoint');
 class Application {
     constructor() {
         this.newsBot = null;
+        this.webGuiService = null;
         this.logger = new Logger(process.env.LOG_LEVEL || 'info');
         this.setupProcessHandlers();
     }
@@ -59,6 +61,17 @@ class Application {
 
             // Register endpoints
             await this.registerEndpoints(config, dataManager);
+
+            // Create and start Web GUI service (if not disabled)
+            if (!config.getBotConfig().disableGUI) {
+                this.webGuiService = new WebGUIService(this.newsBot, config, this.logger);
+                try {
+                    await this.webGuiService.start();
+                } catch (error) {
+                    this.logger.error('Failed to start Web GUI, continuing without it', error);
+                    this.webGuiService = null;
+                }
+            }
 
             // Set up NewsBot event handlers
             this.setupNewsBotHandlers();
@@ -141,6 +154,9 @@ class Application {
     }
 
     async shutdown() {
+        if (this.webGuiService) {
+            await this.webGuiService.stop();
+        }
         if (this.newsBot) {
             await this.newsBot.shutdown();
         }

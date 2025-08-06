@@ -37,7 +37,9 @@ class Config {
 
         this.bot = {
             intervalMinutes: parseFloat(process.env.INTERVAL_MINUTES) || 1.25,
-            testing: process.env.NODE_ENV === 'test' || process.env.TESTING === 'true'
+            testing: process.env.NODE_ENV === 'test' || process.env.TESTING === 'true',
+            vectorEmbedding: process.env.VECTOR_EMBEDDING !== 'false', // Default enabled
+            disableGUI: process.env.DISABLE_GUI === 'true'
         };
 
         this.secrets = {

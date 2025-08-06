@@ -1,5 +1,7 @@
 const axios = require('axios');
 const BaseEndpoint = require('../core/BaseEndpoint');
+const EmbeddingService = require('../services/EmbeddingService');
+const SimilarityChecker = require('../utils/SimilarityChecker');
 
 class RedditEndpoint extends BaseEndpoint {
     constructor(config, dataManager) {
@@ -9,6 +11,11 @@ class RedditEndpoint extends BaseEndpoint {
         this.userAgent = 'news_feed_monitor';
         this.requestTimeout = 10000;
         
+        // Vector embedding configuration
+        this.vectorEmbeddingEnabled = config.getBotConfig().vectorEmbedding !== false; // Default enabled
+        this.embeddingService = null;
+        this.similarityChecker = null;
+        
         // Set retention period to 24 hours for Reddit posts
         this.dataManager.setRetentionPeriod(this.name, 24 * 60 * 60);
     }
@@ -17,7 +24,49 @@ class RedditEndpoint extends BaseEndpoint {
         this.logInfo('Initializing Reddit endpoint...');
         await this.loadSources();
         await this.loadBannedKeywords();
+        
+        // Initialize vector embedding if enabled
+        if (this.vectorEmbeddingEnabled) {
+            this.logInfo('Initializing vector embedding for similarity detection...');
+            this.embeddingService = new EmbeddingService({
+                info: (msg, ...args) => this.logInfo(msg, ...args),
+                success: (msg, ...args) => this.logInfo(msg, ...args),
+                error: (msg, ...args) => this.logError(msg, ...args),
+                debug: (msg, ...args) => this.logDebug(msg, ...args)
+            });
+            
+            this.similarityChecker = new SimilarityChecker(
+                this.embeddingService,
+                this.dataManager,
+                {
+                    info: (msg, ...args) => this.logInfo(msg, ...args),
+                    error: (msg, ...args) => this.logError(msg, ...args),
+                    debug: (msg, ...args) => this.logDebug(msg, ...args),
+                    warn: (msg, ...args) => this.logInfo(msg, ...args)
+                },
+                {
+                    similarityThreshold: 0.85,
+                    maxHistorySize: 500,
+                    retentionHours: 48
+                }
+            );
+            
+            try {
+                await this.embeddingService.initialize();
+                await this.similarityChecker.loadRecentHeadlines(this.name);
+                this.logInfo('✅ Vector embedding initialized successfully');
+            } catch (error) {
+                this.logError('❌ Failed to initialize vector embedding, disabling feature', error);
+                this.vectorEmbeddingEnabled = false;
+                this.embeddingService = null;
+                this.similarityChecker = null;
+            }
+        }
+        
         this.logInfo(`Loaded ${this.sources.size} sources and ${this.bannedKeywords.length} banned keywords`);
+        if (this.vectorEmbeddingEnabled) {
+            this.logInfo('🧠 Vector embedding enabled for duplicate detection');
+        }
     }
 
     async loadSources() {
@@ -111,8 +160,25 @@ class RedditEndpoint extends BaseEndpoint {
                 // Skip if already seen
                 if (this.hasSeenItem(postId)) continue;
 
-                // Mark as seen and return
+                // Check for similarity if vector embedding is enabled
+                if (this.vectorEmbeddingEnabled && this.similarityChecker) {
+                    const similarityResult = await this.similarityChecker.checkSimilarity(title);
+                    
+                    if (similarityResult.isSimilar) {
+                        this.logDebug(`Skipping similar headline: "${title.substring(0, 50)}..." (${similarityResult.similarity.toFixed(3)} similarity with "${similarityResult.similarHeadline?.substring(0, 50)}...")`);
+                        this.markItemAsSeen(postId);
+                        continue;
+                    }
+                }
+
+                // Mark as seen and add to similarity checker
                 this.markItemAsSeen(postId);
+                
+                if (this.vectorEmbeddingEnabled && this.similarityChecker) {
+                    await this.similarityChecker.addHeadline(title);
+                    await this.similarityChecker.saveRecentHeadlines(this.name);
+                }
+                
                 return { title, url };
             }
         } catch (error) {
@@ -181,6 +247,135 @@ class RedditEndpoint extends BaseEndpoint {
 
     saveBannedKeywords() {
         this.dataManager.saveCSVData('banned_keywords.csv', this.bannedKeywords.join(','));
+    }
+
+    // Vector embedding control methods
+    
+    isVectorEmbeddingEnabled() {
+        return this.vectorEmbeddingEnabled;
+    }
+
+    async enableVectorEmbedding() {
+        if (this.vectorEmbeddingEnabled) {
+            return { success: true, message: 'Vector embedding already enabled' };
+        }
+
+        try {
+            this.logInfo('Enabling vector embedding...');
+            
+            this.embeddingService = new EmbeddingService({
+                info: (msg, ...args) => this.logInfo(msg, ...args),
+                success: (msg, ...args) => this.logInfo(msg, ...args),
+                error: (msg, ...args) => this.logError(msg, ...args),
+                debug: (msg, ...args) => this.logDebug(msg, ...args)
+            });
+            
+            this.similarityChecker = new SimilarityChecker(
+                this.embeddingService,
+                this.dataManager,
+                {
+                    info: (msg, ...args) => this.logInfo(msg, ...args),
+                    error: (msg, ...args) => this.logError(msg, ...args),
+                    debug: (msg, ...args) => this.logDebug(msg, ...args),
+                    warn: (msg, ...args) => this.logInfo(msg, ...args)
+                },
+                {
+                    similarityThreshold: 0.85,
+                    maxHistorySize: 500,
+                    retentionHours: 48
+                }
+            );
+            
+            await this.embeddingService.initialize();
+            await this.similarityChecker.loadRecentHeadlines(this.name);
+            
+            this.vectorEmbeddingEnabled = true;
+            this.logInfo('✅ Vector embedding enabled successfully');
+            
+            return { success: true, message: 'Vector embedding enabled successfully' };
+            
+        } catch (error) {
+            this.logError('❌ Failed to enable vector embedding', error);
+            this.embeddingService = null;
+            this.similarityChecker = null;
+            return { success: false, message: `Failed to enable vector embedding: ${error.message}` };
+        }
+    }
+
+    async disableVectorEmbedding() {
+        if (!this.vectorEmbeddingEnabled) {
+            return { success: true, message: 'Vector embedding already disabled' };
+        }
+
+        try {
+            this.logInfo('Disabling vector embedding...');
+            
+            if (this.similarityChecker) {
+                await this.similarityChecker.saveRecentHeadlines(this.name);
+                this.similarityChecker.clear();
+            }
+            
+            if (this.embeddingService) {
+                await this.embeddingService.shutdown();
+            }
+            
+            this.vectorEmbeddingEnabled = false;
+            this.embeddingService = null;
+            this.similarityChecker = null;
+            
+            this.logInfo('✅ Vector embedding disabled successfully');
+            return { success: true, message: 'Vector embedding disabled successfully' };
+            
+        } catch (error) {
+            this.logError('❌ Error disabling vector embedding', error);
+            return { success: false, message: `Error disabling vector embedding: ${error.message}` };
+        }
+    }
+
+    getSimilarityStats() {
+        if (!this.vectorEmbeddingEnabled || !this.similarityChecker) {
+            return { enabled: false };
+        }
+
+        return {
+            enabled: true,
+            ...this.similarityChecker.getStats(),
+            cacheSize: this.embeddingService?.getCacheSize() || 0
+        };
+    }
+
+    updateSimilarityThreshold(threshold) {
+        if (this.vectorEmbeddingEnabled && this.similarityChecker) {
+            this.similarityChecker.updateThreshold(threshold);
+            return { success: true, message: `Similarity threshold updated to ${threshold}` };
+        }
+        return { success: false, message: 'Vector embedding not enabled' };
+    }
+
+    clearSimilarityCache() {
+        if (this.vectorEmbeddingEnabled) {
+            if (this.similarityChecker) {
+                this.similarityChecker.clear();
+            }
+            if (this.embeddingService) {
+                this.embeddingService.clearCache();
+            }
+            return { success: true, message: 'Similarity cache cleared' };
+        }
+        return { success: false, message: 'Vector embedding not enabled' };
+    }
+
+    async shutdown() {
+        await super.shutdown();
+        
+        if (this.vectorEmbeddingEnabled) {
+            if (this.similarityChecker) {
+                await this.similarityChecker.saveRecentHeadlines(this.name);
+            }
+            if (this.embeddingService) {
+                await this.embeddingService.shutdown();
+            }
+        }
     }
 }
 
