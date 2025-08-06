@@ -83,6 +83,9 @@ class CongressEndpoint extends BaseEndpoint {
                     const updateDate = new Date(bill.updateDateIncludingText);
                     const hoursSinceUpdate = (Date.now() - updateDate.getTime()) / (1000 * 60 * 60);
                     
+                    // Debug: Log available bill properties to understand API response
+                    this.logDebug(`Bill ${billId} properties:`, Object.keys(bill).join(', '));
+                    
                     // Only consider bills updated in the last 24 hours
                     if (hoursSinceUpdate > 24) continue;
                     
@@ -90,10 +93,54 @@ class CongressEndpoint extends BaseEndpoint {
 
                     this.markItemAsSeen(billId);
                     
+                    let billData = bill;
+                    
+                    // Try to get detailed bill information for sponsor data if not available
+                    if (!bill.sponsors || bill.sponsors.length === 0) {
+                        try {
+                            const detailedBill = await this.getBillDetails(bill.congress, bill.type, bill.number);
+                            if (detailedBill) {
+                                billData = detailedBill;
+                            }
+                        } catch (error) {
+                            this.logDebug(`Could not fetch detailed bill info for ${billId}:`, error.message);
+                        }
+                    }
+                    
+                    // Build comprehensive details
+                    let details = `${bill.type.toUpperCase()} ${bill.number} - Updated: ${this.formatDate(bill.updateDateIncludingText)}`;
+                    
+                    // Add sponsor information
+                    if (billData.sponsors && billData.sponsors.length > 0) {
+                        const sponsor = billData.sponsors[0];
+                        const sponsorInfo = `${sponsor.fullName || `${sponsor.firstName} ${sponsor.lastName}`} (${sponsor.party}-${sponsor.state}${sponsor.district ? `-${sponsor.district}` : ''})`;
+                        details += `\nSponsor: ${sponsorInfo}`;
+                    } else {
+                        // Fallback: show that sponsor info is unavailable  
+                        details += `\nSponsor: [Info not available]`;
+                    }
+                    
+                    // Add legislative status
+                    const status = this.determineLegislativeStatus(billData);
+                    if (status) {
+                        details += `\nStatus: ${status}`;
+                    }
+                    
+                    // Add policy area
+                    if (billData.policyArea && billData.policyArea.name) {
+                        details += `\nPolicy Area: ${billData.policyArea.name}`;
+                    }
+                    
+                    // Add latest action
+                    if (billData.latestAction && billData.latestAction.text) {
+                        const actionDate = billData.latestAction.date ? ` (${this.formatDate(billData.latestAction.date)})` : '';
+                        details += `\nLatest Action: ${billData.latestAction.text}${actionDate}`;
+                    }
+                    
                     return {
-                        title: `📋 BILL UPDATE: ${bill.title}`,
+                        title: `📋 BILL UPDATE: ${billData.title || bill.title}`,
                         url: `https://congress.gov/bill/${bill.congress}th-congress/${bill.type}/${bill.number}`,
-                        details: `${bill.type.toUpperCase()} ${bill.number} - Updated: ${this.formatDate(bill.updateDateIncludingText)}`
+                        details: details
                     };
                 }
             } catch (error) {
@@ -218,6 +265,65 @@ class CongressEndpoint extends BaseEndpoint {
     updateCurrentCongress(congress) {
         this.apiConfig.currentCongress = congress;
         this.logInfo(`Updated current Congress to ${congress}`);
+    }
+
+    determineLegislativeStatus(bill) {
+        // Check if bill became law
+        if (bill.latestAction && bill.latestAction.text) {
+            const actionText = bill.latestAction.text.toLowerCase();
+            
+            if (actionText.includes('became public law') || actionText.includes('signed by president')) {
+                return 'Became Law';
+            }
+            
+            if (actionText.includes('vetoed') || actionText.includes('pocket veto')) {
+                return 'Vetoed';
+            }
+            
+            if (actionText.includes('presented to president') || actionText.includes('sent to president')) {
+                return 'Sent to President';
+            }
+            
+            // House actions
+            if (actionText.includes('passed house') || actionText.includes('passed/agreed to in house')) {
+                // Check if also passed Senate
+                if (actionText.includes('passed senate') || actionText.includes('passed/agreed to in senate')) {
+                    return 'Passed Both Chambers';
+                }
+                return 'Passed House';
+            }
+            
+            // Senate actions
+            if (actionText.includes('passed senate') || actionText.includes('passed/agreed to in senate')) {
+                return 'Passed Senate';
+            }
+            
+            // Committee actions
+            if (actionText.includes('reported by committee') || actionText.includes('reported to')) {
+                return 'Reported by Committee';
+            }
+            
+            if (actionText.includes('referred to committee') || actionText.includes('referred to the committee')) {
+                return 'In Committee';
+            }
+            
+            // Floor actions
+            if (actionText.includes('rule for consideration') || actionText.includes('placed on calendar')) {
+                return 'Scheduled for Floor';
+            }
+            
+            // Introduction
+            if (actionText.includes('introduced') || actionText.includes('submitted')) {
+                return 'Introduced';
+            }
+        }
+        
+        // Fallback: determine status by bill type and basic info
+        if (bill.introducedDate) {
+            return 'Introduced';
+        }
+        
+        return null;
     }
 }
 
