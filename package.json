@@ -1,23 +1,22 @@
 {
   "name": "newsbot-js",
-  "version": "1.0.0",
-  "description": "refactored newsbot.py",
+  "version": "2.0.0",
+  "description": "Modular news aggregation Discord bot with scalable endpoint architecture",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
+    "dev": "LOG_LEVEL=debug node index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "Ecbiv",
   "license": "ISC",
+  "keywords": ["discord", "bot", "news", "reddit", "congress", "nasa", "modular"],
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "dependencies": {
     "axios": "^1.7.9",
-    "body-parser": "^1.20.3",
-    "cors": "^2.8.5",
-    "csv-parser": "^3.2.0",
     "discord.js": "^14.18.0",
-    "dotenv": "^16.4.7",
-    "express": "^4.21.2",
-    "fast-csv": "^5.0.2",
-    "node-fetch": "^2.7.0",
-    "papaparse": "^5.5.2"
+    "dotenv": "^16.4.7"
   }
 }
