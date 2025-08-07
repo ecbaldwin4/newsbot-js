@@ -260,7 +260,7 @@ Access the control panel at http://localhost:3001 to:
 1. **Reddit** - Configurable subreddits with duplicate filtering
 2. **Congress** - Latest bills, votes, and legislative updates  
 3. **Marketaux** - Financial news (100 requests/day limit)
-4. **TheNewsAPI** - General news (requires paid subscription - disabled by default)
+4. **TheNewsAPI** - General news (100 requests/day free tier)
 5. **NASA Asteroids** - Potentially hazardous asteroid alerts
 
 ## 🧠 AI-Powered Features
@@ -363,7 +363,7 @@ docker-compose down -v && docker-compose up -d
 
 ### Common Issues
 
-- **402 Payment Required**: TheNewsAPI requires a paid subscription. Either remove it from `ENABLED_ENDPOINTS` or upgrade your account.
+- **402 Payment Required**: TheNewsAPI free tier limit exceeded (100 requests/day). Wait for reset or upgrade your account.
 - **403 API Errors**: Check API tokens are valid and subscription limits aren't exceeded
 - **Vector Embedding Memory**: Ensure at least 1GB RAM available for TensorFlow
 - **Discord Connection**: Verify bot token and server permissions in Discord Developer Portal
@@ -470,8 +470,7 @@ NASA_TOKEN=your_nasa_token
 MARKETAUX_TOKEN=your_marketaux_token
 
 # Optional - Bot behavior  
-ENABLED_ENDPOINTS=reddit,congress,marketaux
-# Add 'thenewsapi' to ENABLED_ENDPOINTS if you have a paid subscription
+ENABLED_ENDPOINTS=reddit,congress,marketaux,thenewsapi
 VECTOR_EMBEDDING=true
 LOG_LEVEL=info
 ```

@@ -56,7 +56,7 @@ class Config {
         };
 
         this.endpoints = {
-            enabled: (process.env.ENABLED_ENDPOINTS || 'reddit,congress,marketaux').split(',').map(e => e.trim()),
+            enabled: (process.env.ENABLED_ENDPOINTS || 'reddit,congress,marketaux,thenewsapi').split(',').map(e => e.trim()),
             weights: this.parseWeights(process.env.ENDPOINT_WEIGHTS),
             reddit: {
                 defaultSources: [

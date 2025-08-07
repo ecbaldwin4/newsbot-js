@@ -8,6 +8,9 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
         super('thenewsapi', config, dataManager);
         this.apiConfig = config.getAPIConfig('thenewsapi');
         this.requestTimeout = 15000;
+        this.dailyRequestLimit = 100; // Free tier limit
+        this.requestsToday = 0;
+        this.lastRequestDate = '';
         
         // Vector embedding configuration
         this.vectorEmbeddingEnabled = config.getBotConfig().vectorEmbedding !== false;
@@ -30,6 +33,8 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
         }
 
         this.logInfo('Initializing TheNewsAPI endpoint...');
+        this.loadRequestCount();
+        this.logInfo(`📊 Daily requests used: ${this.requestsToday}/${this.dailyRequestLimit}`);
         
         // Initialize vector embedding if enabled
         if (this.vectorEmbeddingEnabled) {
@@ -75,8 +80,65 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
         }
     }
 
+    loadRequestCount() {
+        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+        
+        try {
+            const data = this.dataManager.loadCSVData('thenewsapi_request_count.csv', line => {
+                const [date, count] = line.split(',');
+                return { date, count: parseInt(count) || 0 };
+            });
+            
+            const todayData = data.find(item => item.date === today);
+            if (todayData) {
+                this.requestsToday = todayData.count;
+            } else {
+                this.requestsToday = 0;
+            }
+            
+            this.lastRequestDate = today;
+        } catch (error) {
+            this.logDebug('No existing request count data, starting fresh');
+            this.requestsToday = 0;
+            this.lastRequestDate = today;
+        }
+    }
+
+    saveRequestCount() {
+        const today = new Date().toISOString().split('T')[0];
+        const data = [`${today},${this.requestsToday}`];
+        this.dataManager.saveCSVData('thenewsapi_request_count.csv', data);
+    }
+
+    canMakeRequest() {
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Reset count if it's a new day
+        if (today !== this.lastRequestDate) {
+            this.requestsToday = 0;
+            this.lastRequestDate = today;
+        }
+        
+        return this.requestsToday < this.dailyRequestLimit;
+    }
+
+    incrementRequestCount() {
+        this.requestsToday++;
+        this.saveRequestCount();
+        this.logInfo(`📊 API requests today: ${this.requestsToday}/${this.dailyRequestLimit}`);
+        
+        if (this.requestsToday >= this.dailyRequestLimit) {
+            this.logInfo('⚠️ Daily request limit reached! Endpoint will be inactive until tomorrow.');
+        }
+    }
+
     async fetchUpdate() {
         if (!this.isEnabled || !this.apiConfig.token) {
+            return null;
+        }
+
+        if (!this.canMakeRequest()) {
+            this.logDebug('Daily request limit reached, skipping fetch');
             return null;
         }
 
@@ -114,6 +176,8 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
                 timeout: this.requestTimeout
             });
 
+            this.incrementRequestCount();
+            
             this.logInfo(`✅ API call completed successfully for: ${url} (found ${response.data?.data?.length || 0} articles)`);
 
             const articles = response.data?.data || [];
@@ -172,14 +236,15 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
             
         } catch (error) {
             if (error.response?.status === 402) {
-                this.logError(`💳 TheNewsAPI requires a paid subscription (HTTP 402). Visit https://www.thenewsapi.com/pricing to upgrade your account.`);
+                this.logError(`💳 TheNewsAPI free tier limit exceeded (HTTP 402). Free tier allows 100 requests/day. Visit https://www.thenewsapi.com/pricing for higher limits.`);
             } else if (error.response?.status === 403) {
-                this.logError(`🔑 TheNewsAPI access denied (HTTP 403). Check your API token or subscription level.`);
+                this.logError(`🔑 TheNewsAPI access denied (HTTP 403). Check your API token or verify your account.`);
             } else if (error.response?.status === 429) {
-                this.logError(`⏰ TheNewsAPI rate limit exceeded (HTTP 429). Please wait before making more requests.`);
+                this.logError(`⏰ TheNewsAPI rate limit exceeded (HTTP 429). Daily limit: ${this.dailyRequestLimit} requests.`);
             } else {
                 this.logError(`❌ API call failed for: ${endpoint.url}`, error.message || error);
             }
+            // Don't increment request count on error
         }
 
         return null;
@@ -212,6 +277,24 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
         
         // Require at least 2 common English words for longer content
         return englishWordCount >= 2;
+    }
+
+    getRemainingRequests() {
+        if (!this.canMakeRequest()) {
+            return 0;
+        }
+        return this.dailyRequestLimit - this.requestsToday;
+    }
+
+    getRequestStats() {
+        const today = new Date().toISOString().split('T')[0];
+        return {
+            requestsToday: this.requestsToday,
+            dailyLimit: this.dailyRequestLimit,
+            remaining: this.getRemainingRequests(),
+            date: today,
+            canMakeRequest: this.canMakeRequest()
+        };
     }
 
     isAPIConfigured() {

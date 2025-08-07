@@ -392,6 +392,10 @@
                     <span class="stat-label">Vector Embedding:</span>
                     <span class="stat-value" id="thenewsapi-embedding">Unknown</span>
                 </div>
+                <div class="stat">
+                    <span class="stat-label">Requests Today:</span>
+                    <span class="stat-value" id="thenewsapi-requests">0/100</span>
+                </div>
                 <div class="input-group">
                     <label>Weight:</label>
                     <input type="number" id="thenewsapi-weight-input" min="0" max="10" step="0.1" value="1">
@@ -525,6 +529,11 @@
             document.getElementById('thenewsapi-api').textContent = thenewsapi.apiConfigured ? 'Yes' : 'No';
             document.getElementById('thenewsapi-embedding').textContent = thenewsapi.vectorEmbedding?.enabled ? 'Enabled' : 'Disabled';
             document.getElementById('thenewsapi-weight-input').value = thenewsapi.weight || 1;
+            
+            // Update TheNewsAPI request stats
+            const thenewsapiStats = thenewsapi.requestStats || { requestsToday: 0, dailyLimit: 100, remaining: 100 };
+            document.getElementById('thenewsapi-requests').textContent = 
+                `${thenewsapiStats.requestsToday}/${thenewsapiStats.dailyLimit} (${thenewsapiStats.remaining} remaining)`;
 
             // Vector Embedding
             const embedding = reddit.vectorEmbedding || {};
