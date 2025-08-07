@@ -369,7 +369,7 @@ docker-compose down -v && docker-compose up -d
 - **Discord Connection**: Verify bot token and server permissions in Discord Developer Portal
 - **GUI Not Loading**: Check port 3001 isn't in use by another service (`docker-compose ps`)
 - **Container Won't Start**: Check Docker daemon is running (`docker --version`)
-- **Reddit "anime_titties" logs**: This is a legitimate world news subreddit (despite the name) - it's been replaced with more professional alternatives
+- **Reddit "anime_titties" logs**: This is a legitimate world news subreddit (despite the name) that provides quality international news coverage
 
 ### Getting Help
 
