@@ -1,6 +1,6 @@
-# NewsBot - Modular News Aggregation Bot
+# NewsBot - Modular News Aggregation Bot 🤖
 
-A scalable, object-oriented Discord bot that fetches news from multiple sources and delivers them to Discord channels.
+A scalable, object-oriented Discord bot that fetches news from multiple sources and delivers them to Discord channels. Now featuring AI-powered duplicate detection, web control panel, and Docker support!
 
 ## 🏗️ Architecture
 
@@ -27,14 +27,56 @@ newsbot/
 └── index.js                    # Entry point
 ```
 
-## 🚀 Quick Start
+## 🚀 Quick Start with Docker (Recommended)
+
+### Prerequisites
+- Docker and Docker Compose installed
+- Discord bot token
+
+### 1. Clone and Configure
+```bash
+git clone <repository-url>
+cd new-newsbot-js
+```
+
+Create a `.env` file:
+```env
+# Required
+DISCORD_BOT_TOKEN=your_discord_bot_token_here
+
+# Optional
+TEST_CHANNEL=your_test_channel_id
+GO_CHANNEL=your_main_channel_id
+CONGRESS_GOV_TOKEN=your_congress_token
+NASA_TOKEN=your_nasa_token
+MARKETAUX_TOKEN=your_marketaux_token
+ENABLED_ENDPOINTS=reddit,congress,marketaux
+VECTOR_EMBEDDING=true
+LOG_LEVEL=info
+```
+
+### 2. Deploy with Docker
+```bash
+# Start the bot
+docker-compose up -d
+
+# View logs
+docker-compose logs -f
+
+# Stop the bot
+docker-compose down
+```
+
+🎛️ **Web Control Panel**: http://localhost:3001
+
+## 🛠️ Manual Installation (Alternative)
 
 1. **Install dependencies:**
    ```bash
    npm install
    ```
 
-2. **Configure environment variables:**
+2. **Configure environment:**
    ```bash
    cp .env.example .env
    # Edit .env with your tokens
@@ -153,6 +195,81 @@ ENABLED_ENDPOINTS=reddit,congress,your-endpoint
 - `!asteroids` - Show hazardous asteroids
 - `!congress` - Get latest Congress update
 
+## 🐳 Docker Management
+
+### Container Operations
+```bash
+# View container status
+docker-compose ps
+
+# Restart the bot
+docker-compose restart
+
+# Update the bot
+git pull
+docker-compose build --no-cache
+docker-compose up -d
+
+# View detailed logs
+docker-compose logs -f newsbot
+
+# Access container shell
+docker-compose exec newsbot /bin/bash
+
+# Remove everything (including data)
+docker-compose down -v
+```
+
+### Data Persistence
+The `./data` directory is mounted as a volume, ensuring your configuration and cache data persists across container restarts.
+
+### Health Monitoring
+The container includes health checks that monitor the web GUI. Check health status:
+```bash
+docker-compose ps  # Shows health status
+docker inspect newsbot-js | grep Health  # Detailed health info
+```
+
+### Resource Usage
+```bash
+# View resource usage
+docker stats newsbot-js
+
+# Set resource limits in docker-compose.yml:
+deploy:
+  resources:
+    limits:
+      memory: 1G
+      cpus: '0.5'
+```
+
+## 🎛️ Web Control Panel
+
+Access the control panel at http://localhost:3001 to:
+
+- ✅ Monitor bot status and Discord connection
+- 🎚️ Enable/disable news sources and adjust weights  
+- 📱 Manage Reddit sources
+- 🧠 Control vector embedding settings
+- 📊 View API request statistics
+- 🔧 Manually fetch news for testing
+- 📈 Monitor similarity detection performance
+
+## 📰 News Sources
+
+1. **Reddit** - Configurable subreddits with duplicate filtering
+2. **Congress** - Latest bills, votes, and legislative updates  
+3. **Marketaux** - Financial news (100 requests/day limit)
+4. **TheNewsAPI** - General news (requires subscription)
+5. **NASA Asteroids** - Potentially hazardous asteroid alerts
+
+## 🧠 AI-Powered Features
+
+- **Vector Embedding**: Uses TensorFlow Universal Sentence Encoder
+- **Duplicate Detection**: Prevents similar headlines with 85% similarity threshold
+- **Smart Caching**: Optimized embedding cache for performance
+- **Adaptive Intervals**: Automatically adjusts based on news availability
+
 ## 📊 Features
 
 ### Scalability
@@ -225,6 +342,65 @@ The bot provides detailed status information on startup and includes event loggi
 3. Include appropriate logging
 4. Update documentation
 5. Test with various scenarios
+
+## 🔧 Troubleshooting
+
+### Docker Issues
+
+```bash
+# Check container health
+docker-compose ps
+
+# View detailed logs
+docker-compose logs newsbot
+
+# Rebuild container completely
+docker-compose build --no-cache
+
+# Reset everything (careful - removes data)
+docker-compose down -v && docker-compose up -d
+```
+
+### Common Issues
+
+- **403 API Errors**: Check API tokens and subscription limits
+- **Vector Embedding Memory**: Ensure at least 1GB RAM available
+- **Discord Connection**: Verify bot token and server permissions  
+- **GUI Not Loading**: Check port 3001 isn't in use by another service
+- **Container Won't Start**: Check Docker daemon is running
+
+### Getting Help
+
+1. Check the logs: `docker-compose logs -f`
+2. Verify environment variables in `.env`
+3. Test API tokens independently
+4. Check Discord bot permissions
+
+## 📈 Deployment Options
+
+### Production Deployment
+```bash
+# Use production environment file
+docker-compose --env-file .env.prod up -d
+
+# Run on different port
+# Edit docker-compose.yml ports: "8080:3001"
+
+# Background deployment with restart policy
+docker-compose up -d --restart unless-stopped
+```
+
+### Export/Import for Sharing
+```bash
+# Export application
+tar -czf newsbot-app.tar.gz .
+
+# On new system:
+tar -xzf newsbot-app.tar.gz
+cd new-newsbot-js
+# Configure .env file
+docker-compose up -d
+```
 
 ## 📝 License
 

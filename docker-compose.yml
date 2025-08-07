@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  newsbot:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    container_name: newsbot-js
+    restart: unless-stopped
+    ports:
+      - "3001:3001"  # GUI port
+    volumes:
+      - ./data:/app/data  # Persist data directory
+      - ./logs:/app/logs  # Persist logs (if created)
+    environment:
+      # Required environment variables
+      - DISCORD_BOT_TOKEN=${DISCORD_BOT_TOKEN}
+      
+      # Discord channels (optional)
+      - TEST_CHANNEL=${TEST_CHANNEL:-}
+      - GO_CHANNEL=${GO_CHANNEL:-}
+      - TYTANIC=${TYTANIC:-}
+      
+      # API tokens (optional)
+      - CONGRESS_GOV_TOKEN=${CONGRESS_GOV_TOKEN:-}
+      - NASA_TOKEN=${NASA_TOKEN:-}
+      - MARKETAUX_TOKEN=${MARKETAUX_TOKEN:-}
+      - THENEWSAPI_TOKEN=${THENEWSAPI_TOKEN:-}
+      
+      # Bot configuration (optional)
+      - INTERVAL_MINUTES=${INTERVAL_MINUTES:-1.25}
+      - ENABLED_ENDPOINTS=${ENABLED_ENDPOINTS:-reddit,congress,marketaux}
+      - ENDPOINT_WEIGHTS=${ENDPOINT_WEIGHTS:-}
+      - VECTOR_EMBEDDING=${VECTOR_EMBEDDING:-true}
+      - DISABLE_GUI=${DISABLE_GUI:-false}
+      - LOG_LEVEL=${LOG_LEVEL:-info}
+      - NODE_ENV=${NODE_ENV:-production}
+      
+      # Data configuration (optional)
+      - DATA_DIRECTORY=${DATA_DIRECTORY:-./data}
+      - DATA_RETENTION_DAYS=${DATA_RETENTION_DAYS:-7}
+      
+      # Secrets (optional)
+      - secret_message=${secret_message:-}
+      - secret_reply=${secret_reply:-}
+    env_file:
+      - .env  # Load from .env file if it exists
+    healthcheck:
+      test: ["CMD", "node", "-e", "const http = require('http'); const options = { host: 'localhost', port: 3001, path: '/', timeout: 2000 }; const request = http.request(options, (res) => { process.exit(res.statusCode === 200 ? 0 : 1); }); request.on('error', () => process.exit(1)); request.end();"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s  # Give more time for TensorFlow to initialize
+    networks:
+      - newsbot-network
+
+networks:
+  newsbot-network:
+    driver: bridge

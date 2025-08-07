@@ -1,0 +1,60 @@
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Git files
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+
+# Environment files (will be mounted or passed via compose)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Data directory (will be mounted as volume)
+data/
+
+# Temporary files
+tmp/
+temp/
+
+# Coverage directory used by tools like istanbul
+coverage/
+
+# Docker files (not needed inside container)
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Documentation
+README.md
+docs/
+*.md
+
+# CI/CD files
+.github/
+.gitlab-ci.yml
+
+# Test files
+test/
+tests/
+*.test.js
+*.spec.js

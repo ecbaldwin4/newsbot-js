@@ -105,10 +105,8 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
             this.logInfo(`🌐 Making API call to: ${url} (${endpoint.name})`);
             
             const response = await axios.get(url, {
-                headers: {
-                    'Authorization': `Bearer ${this.apiConfig.token}`
-                },
                 params: {
+                    api_token: this.apiConfig.token,
                     language: 'en',
                     limit: 10,
                     sort: 'published_at:desc'
