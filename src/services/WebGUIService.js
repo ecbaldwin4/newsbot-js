@@ -41,6 +41,7 @@ class WebGUIService {
                 const redditEndpoint = this.newsBot.getEndpoint('reddit');
                 const congressEndpoint = this.newsBot.getEndpoint('congress');
                 const marketauxEndpoint = this.newsBot.getEndpoint('marketaux');
+                const thenewsapiEndpoint = this.newsBot.getEndpoint('thenewsapi');
                 
                 const response = {
                     ...status,
@@ -62,6 +63,13 @@ class WebGUIService {
                             weight: marketauxEndpoint?.getWeight() || 0,
                             apiConfigured: marketauxEndpoint?.isAPIConfigured() || false,
                             requestStats: marketauxEndpoint?.getRequestStats() || { requestsToday: 0, dailyLimit: 100, remaining: 100 }
+                        },
+                        thenewsapi: {
+                            enabled: thenewsapiEndpoint?.isEndpointEnabled() || false,
+                            weight: thenewsapiEndpoint?.getWeight() || 0,
+                            apiConfigured: thenewsapiEndpoint?.isAPIConfigured() || false,
+                            requestStats: thenewsapiEndpoint?.getRequestStats() || { requestsToday: 0, dailyLimit: 100, remaining: 100 },
+                            vectorEmbedding: thenewsapiEndpoint?.getSimilarityStats() || { enabled: false }
                         }
                     }
                 };
