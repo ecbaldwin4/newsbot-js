@@ -83,15 +83,19 @@ class CongressEndpoint extends BaseEndpoint {
                     const updateDate = new Date(bill.updateDateIncludingText);
                     const hoursSinceUpdate = (Date.now() - updateDate.getTime()) / (1000 * 60 * 60);
                     
+                    // Create unique tracking ID based on bill ID and update timestamp
+                    const trackingId = `${billId}-${bill.updateDateIncludingText}`;
+                    
                     // Debug: Log available bill properties to understand API response
                     this.logDebug(`Bill ${billId} properties:`, Object.keys(bill).join(', '));
                     
                     // Only consider bills updated in the last 24 hours
                     if (hoursSinceUpdate > 24) continue;
                     
-                    if (this.hasSeenItem(billId)) continue;
+                    // Check if we've seen this specific update (not just the bill)
+                    if (this.hasSeenItem(trackingId)) continue;
 
-                    this.markItemAsSeen(billId);
+                    this.markItemAsSeen(trackingId);
                     
                     let billData = bill;
                     
@@ -173,11 +177,14 @@ class CongressEndpoint extends BaseEndpoint {
                 const voteDate = new Date(vote.date);
                 const hoursSinceVote = (Date.now() - voteDate.getTime()) / (1000 * 60 * 60);
                 
+                // Create unique tracking ID (votes are unique by nature, but keeping consistent pattern)
+                const trackingId = `${voteId}-${vote.date}`;
+                
                 // Only consider votes from the last 24 hours
                 if (hoursSinceVote > 24) continue;
-                if (this.hasSeenItem(voteId)) continue;
+                if (this.hasSeenItem(trackingId)) continue;
 
-                this.markItemAsSeen(voteId);
+                this.markItemAsSeen(trackingId);
                 
                 return {
                     title: `🗳️ HOUSE VOTE: ${vote.question || 'Unknown Question'}`,

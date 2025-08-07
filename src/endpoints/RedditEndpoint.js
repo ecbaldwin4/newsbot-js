@@ -140,7 +140,8 @@ class RedditEndpoint extends BaseEndpoint {
                     id: postId,
                     title,
                     created_utc: createdUtc,
-                    author: postAuthor
+                    author: postAuthor,
+                    subreddit: postSubreddit
                 } = postData;
 
                 const url = postData.url_overridden_by_dest || postData.url || '';
@@ -150,6 +151,12 @@ class RedditEndpoint extends BaseEndpoint {
 
                 // Skip if author doesn't match (unless 'any')
                 if (author !== 'any' && postAuthor !== author) continue;
+
+                // Validate that post comes from an approved source subreddit
+                if (!this.isFromApprovedSource(jsonUrl, postSubreddit)) {
+                    this.markItemAsSeen(postId);
+                    continue;
+                }
 
                 // Skip if URL is invalid or banned
                 if (!url || this.isUrlBanned(url)) {
@@ -193,6 +200,18 @@ class RedditEndpoint extends BaseEndpoint {
         return this.bannedKeywords.some(keyword => 
             lowerUrl.includes(keyword.toLowerCase())
         );
+    }
+
+    isFromApprovedSource(jsonUrl, postSubreddit) {
+        // Extract subreddit name from the JSON URL
+        const urlMatch = jsonUrl.match(/\/r\/([^\/]+)/);
+        if (!urlMatch) return false;
+        
+        const sourceSubreddit = urlMatch[1].toLowerCase();
+        const currentPostSubreddit = postSubreddit?.toLowerCase();
+        
+        // Ensure the post is from the same subreddit as the source
+        return sourceSubreddit === currentPostSubreddit;
     }
 
     getRandomSource() {

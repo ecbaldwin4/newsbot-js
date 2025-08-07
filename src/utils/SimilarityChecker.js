@@ -32,19 +32,38 @@ class SimilarityChecker {
 
             this.logger.debug(`Kept ${validHeadlines.length} valid headlines after filtering`);
 
-            // Load embeddings for valid headlines
+            // Load embeddings for valid headlines in batches to prevent hanging
             if (validHeadlines.length > 0) {
-                const headlineTexts = validHeadlines.map(item => item.headline);
-                const embeddings = await this.embeddingService.getEmbeddings(headlineTexts);
-
-                validHeadlines.forEach((item, index) => {
-                    if (embeddings[index]) {
-                        this.recentHeadlines.set(item.headline, {
-                            embedding: embeddings[index],
-                            timestamp: item.timestamp
+                // Limit to most recent 50 headlines at startup to prevent overwhelming the system
+                const headlinesToLoad = validHeadlines
+                    .sort((a, b) => b.timestamp - a.timestamp) // Sort by newest first
+                    .slice(0, 50); // Limit to 50 most recent
+                
+                this.logger.debug(`Loading embeddings for ${headlinesToLoad.length} most recent headlines`);
+                
+                // Process in batches of 10 to prevent system overload
+                const batchSize = 10;
+                for (let i = 0; i < headlinesToLoad.length; i += batchSize) {
+                    const batch = headlinesToLoad.slice(i, i + batchSize);
+                    const headlineTexts = batch.map(item => item.headline);
+                    
+                    try {
+                        const embeddings = await this.embeddingService.getEmbeddings(headlineTexts);
+                        
+                        batch.forEach((item, index) => {
+                            if (embeddings[index]) {
+                                this.recentHeadlines.set(item.headline, {
+                                    embedding: embeddings[index],
+                                    timestamp: item.timestamp
+                                });
+                            }
                         });
+                        
+                        this.logger.debug(`Processed batch ${Math.floor(i/batchSize) + 1}/${Math.ceil(headlinesToLoad.length/batchSize)}`);
+                    } catch (error) {
+                        this.logger.error(`Error processing embedding batch ${i}-${i+batchSize}:`, error);
                     }
-                });
+                }
             }
 
             this.logger.info(`Loaded ${this.recentHeadlines.size} recent headlines with embeddings for ${endpointName}`);
