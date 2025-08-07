@@ -130,25 +130,35 @@ class NewsBot extends EventEmitter {
     }
 
     async fetchNews() {
-        const endpoint = this.selectRandomEndpoint();
-        if (!endpoint) {
+        const enabledEndpoints = this.getEnabledEndpoints();
+        if (enabledEndpoints.length === 0) {
             this.logger.warn('No enabled endpoints available');
             return null;
         }
 
-        this.logger.debug(`Fetching news from ${endpoint.getName()}`);
+        // Try all endpoints in random order until we find news
+        const shuffledEndpoints = [...enabledEndpoints].sort(() => 0.5 - Math.random());
         
-        try {
-            const newsItem = await endpoint.fetchUpdate();
-            if (newsItem) {
-                this.logger.info(`News fetched from ${endpoint.getName()}: ${newsItem.title.substring(0, 50)}...`);
-                this.emit('newsFetched', newsItem, endpoint);
+        for (const endpoint of shuffledEndpoints) {
+            this.logger.debug(`Trying to fetch news from ${endpoint.getName()}`);
+            
+            try {
+                const newsItem = await endpoint.fetchUpdate();
+                if (newsItem) {
+                    this.logger.info(`📰 News fetched from ${endpoint.getName()}: ${newsItem.title.substring(0, 50)}...`);
+                    this.emit('newsFetched', newsItem, endpoint);
+                    return newsItem;
+                }
+                this.logger.debug(`No news found from ${endpoint.getName()}`);
+            } catch (error) {
+                this.logger.error(`Error fetching news from ${endpoint.getName()}`, error);
+                continue; // Try the next endpoint
             }
-            return newsItem;
-        } catch (error) {
-            this.logger.error(`Error fetching news from ${endpoint.getName()}`, error);
-            return null;
         }
+
+        // If we get here, all endpoints have been tried and returned nothing
+        this.logger.debug('🔍 All endpoints checked - no news found');
+        return null;
     }
 
     async sendNews(newsItem) {
@@ -282,13 +292,18 @@ class NewsBot extends EventEmitter {
     }
 
     onNoPostFound() {
+        const enabledEndpoints = this.getEnabledEndpoints();
+        const endpointNames = enabledEndpoints.map(e => e.getName()).join(', ');
+        
         // Increase interval by 30 seconds (up to 60 minutes max)
         const incrementMinutes = this.intervalIncrementSeconds / 60;
         const newInterval = Math.min(this.currentIntervalMinutes + incrementMinutes, this.maxIntervalMinutes);
         
         if (newInterval > this.currentIntervalMinutes) {
             this.currentIntervalMinutes = newInterval;
-            this.logger.info(`😴 No posts found. Increased interval to ${this.currentIntervalMinutes} minutes`);
+            this.logger.info(`😴 All endpoints (${endpointNames}) returned no news. Increased interval to ${this.currentIntervalMinutes} minutes`);
+        } else {
+            this.logger.info(`😴 All endpoints (${endpointNames}) returned no news. Interval at maximum (${this.currentIntervalMinutes} minutes)`);
         }
     }
 
