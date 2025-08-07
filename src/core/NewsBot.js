@@ -12,6 +12,13 @@ class NewsBot extends EventEmitter {
         this.newsInterval = null;
         this.isRunning = false;
         
+        // Adaptive interval system
+        this.baseIntervalMinutes = config.getIntervalMinutes();
+        this.currentIntervalMinutes = this.baseIntervalMinutes;
+        this.maxIntervalMinutes = 60; // 1 hour max
+        this.intervalIncrementSeconds = 30; // 30 seconds increment
+        this.lastSuccessfulPost = Date.now();
+        
         this.setupEventHandlers();
     }
 
@@ -225,27 +232,61 @@ class NewsBot extends EventEmitter {
             return;
         }
 
-        const intervalMs = this.config.getIntervalMinutes() * 60 * 1000;
-        this.logger.info(`Starting news loop with ${this.config.getIntervalMinutes()} minute interval`);
-
-        this.newsInterval = setInterval(async () => {
-            try {
-                const newsItem = await this.fetchNews();
-                if (newsItem) {
-                    await this.sendNews(newsItem);
-                }
-            } catch (error) {
-                this.logger.error('Error in news loop', error);
-            }
-        }, intervalMs);
-
+        this.scheduleNextFetch();
         this.isRunning = true;
         this.emit('newsLoopStarted');
     }
 
+    scheduleNextFetch() {
+        const intervalMs = this.currentIntervalMinutes * 60 * 1000;
+        this.logger.info(`⏰ Next fetch in ${this.currentIntervalMinutes} minutes`);
+
+        this.newsInterval = setTimeout(async () => {
+            try {
+                const newsItem = await this.fetchNews();
+                if (newsItem) {
+                    await this.sendNews(newsItem);
+                    this.onSuccessfulPost();
+                } else {
+                    this.onNoPostFound();
+                }
+                
+                if (this.isRunning) {
+                    this.scheduleNextFetch();
+                }
+            } catch (error) {
+                this.logger.error('Error in news loop', error);
+                if (this.isRunning) {
+                    this.scheduleNextFetch();
+                }
+            }
+        }, intervalMs);
+    }
+
+    onSuccessfulPost() {
+        this.lastSuccessfulPost = Date.now();
+        
+        // Reset interval to base value
+        if (this.currentIntervalMinutes !== this.baseIntervalMinutes) {
+            this.currentIntervalMinutes = this.baseIntervalMinutes;
+            this.logger.info(`📰 Post sent! Reset interval to ${this.currentIntervalMinutes} minutes`);
+        }
+    }
+
+    onNoPostFound() {
+        // Increase interval by 30 seconds (up to 60 minutes max)
+        const incrementMinutes = this.intervalIncrementSeconds / 60;
+        const newInterval = Math.min(this.currentIntervalMinutes + incrementMinutes, this.maxIntervalMinutes);
+        
+        if (newInterval > this.currentIntervalMinutes) {
+            this.currentIntervalMinutes = newInterval;
+            this.logger.info(`😴 No posts found. Increased interval to ${this.currentIntervalMinutes} minutes`);
+        }
+    }
+
     stopNewsLoop() {
         if (this.newsInterval) {
-            clearInterval(this.newsInterval);
+            clearTimeout(this.newsInterval);
             this.newsInterval = null;
             this.isRunning = false;
             this.emit('newsLoopStopped');
@@ -296,7 +337,9 @@ class NewsBot extends EventEmitter {
             discordConnected: this.discordService.isConnected(),
             enabledEndpoints: this.getEnabledEndpoints().map(e => e.getName()),
             totalEndpoints: this.endpoints.size,
-            intervalMinutes: this.config.getIntervalMinutes()
+            intervalMinutes: this.currentIntervalMinutes,
+            baseIntervalMinutes: this.baseIntervalMinutes,
+            maxIntervalMinutes: this.maxIntervalMinutes
         };
     }
 }

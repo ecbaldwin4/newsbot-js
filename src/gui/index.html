@@ -422,7 +422,8 @@
             document.getElementById('discord-status').textContent = 
                 status.discordConnected ? 'Connected' : 'Disconnected';
             
-            document.getElementById('interval').textContent = status.intervalMinutes + ' minutes';
+            document.getElementById('interval').textContent = 
+                `${status.intervalMinutes} min (base: ${status.baseIntervalMinutes}, max: ${status.maxIntervalMinutes})`;
             document.getElementById('active-endpoints').textContent = 
                 status.enabledEndpoints.join(', ') + ` (${status.enabledEndpoints.length}/${status.totalEndpoints})`;
 
