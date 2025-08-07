@@ -6,9 +6,11 @@ class DataManager {
         this.dataDirectory = dataDirectory;
         this.seenItems = new Map(); // endpointName -> Map(itemId -> timestamp)
         this.retentionPeriods = new Map(); // endpointName -> retention period in seconds
+        this.cleanupInterval = null;
         
         this.ensureDataDirectory();
         this.loadAllData();
+        this.startPeriodicCleanup();
     }
 
     ensureDataDirectory() {
@@ -162,6 +164,27 @@ class DataManager {
         if (!fs.existsSync(filePath)) {
             fs.writeFileSync(filePath, defaultContent, 'utf8');
         }
+    }
+
+    startPeriodicCleanup() {
+        // Run cleanup every hour
+        this.cleanupInterval = setInterval(() => {
+            console.log('Running periodic cleanup of seen items...');
+            this.seenItems.forEach((_, endpointName) => {
+                this.cleanupOldItems(endpointName);
+            });
+        }, 60 * 60 * 1000); // 1 hour
+    }
+
+    stopPeriodicCleanup() {
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+    }
+
+    shutdown() {
+        this.stopPeriodicCleanup();
     }
 }
 

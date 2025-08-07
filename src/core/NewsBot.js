@@ -283,6 +283,9 @@ class NewsBot extends EventEmitter {
         // Shutdown Discord service
         await this.discordService.shutdown();
         
+        // Shutdown data manager
+        this.dataManager.shutdown();
+        
         this.emit('shutdown');
         this.logger.success('NewsBot shut down successfully');
     }

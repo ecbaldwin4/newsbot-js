@@ -117,6 +117,9 @@ class RedditEndpoint extends BaseEndpoint {
                 this.logInfo(`Found new post: ${post.title.substring(0, 50)}...`);
                 return this.formatNewsItem(post);
             }
+            
+            // Add delay between source attempts to avoid rate limiting
+            await new Promise(resolve => setTimeout(resolve, 1000)); // 1 second delay
         }
 
         this.logDebug('No new Reddit posts found');
@@ -189,7 +192,12 @@ class RedditEndpoint extends BaseEndpoint {
                 return { title, url };
             }
         } catch (error) {
-            this.logError(`Error fetching from ${jsonUrl}`, error);
+            if (error.response?.status === 429) {
+                this.logError(`Rate limited by Reddit for ${jsonUrl}. Waiting 60 seconds...`);
+                await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute on rate limit
+            } else {
+                this.logError(`Error fetching from ${jsonUrl}`, error);
+            }
         }
 
         return null;
