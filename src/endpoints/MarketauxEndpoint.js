@@ -231,7 +231,15 @@ class MarketauxEndpoint extends BaseEndpoint {
             }
             
         } catch (error) {
-            this.logError(`❌ API call failed for Marketaux`, error);
+            if (error.response?.status === 402) {
+                this.logError(`💳 Marketaux API requires a paid subscription (HTTP 402). Visit https://www.marketaux.com/pricing to upgrade your account.`);
+            } else if (error.response?.status === 403) {
+                this.logError(`🔑 Marketaux API access denied (HTTP 403). Check your API token or subscription level.`);
+            } else if (error.response?.status === 429) {
+                this.logError(`⏰ Marketaux API rate limit exceeded (HTTP 429). Daily limit: ${this.dailyRequestLimit} requests.`);
+            } else {
+                this.logError(`❌ Marketaux API call failed`, error.message || error);
+            }
             // Don't increment request count on error
         }
 

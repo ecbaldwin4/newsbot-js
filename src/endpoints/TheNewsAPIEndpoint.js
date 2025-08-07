@@ -171,7 +171,15 @@ class TheNewsAPIEndpoint extends BaseEndpoint {
             }
             
         } catch (error) {
-            this.logError(`❌ API call failed for: ${endpoint.url}`, error);
+            if (error.response?.status === 402) {
+                this.logError(`💳 TheNewsAPI requires a paid subscription (HTTP 402). Visit https://www.thenewsapi.com/pricing to upgrade your account.`);
+            } else if (error.response?.status === 403) {
+                this.logError(`🔑 TheNewsAPI access denied (HTTP 403). Check your API token or subscription level.`);
+            } else if (error.response?.status === 429) {
+                this.logError(`⏰ TheNewsAPI rate limit exceeded (HTTP 429). Please wait before making more requests.`);
+            } else {
+                this.logError(`❌ API call failed for: ${endpoint.url}`, error.message || error);
+            }
         }
 
         return null;
