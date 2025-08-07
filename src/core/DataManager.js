@@ -169,7 +169,7 @@ class DataManager {
     startPeriodicCleanup() {
         // Run cleanup every hour
         this.cleanupInterval = setInterval(() => {
-            console.log('Running periodic cleanup of seen items...');
+            // Running periodic cleanup of seen items silently
             this.seenItems.forEach((_, endpointName) => {
                 this.cleanupOldItems(endpointName);
             });

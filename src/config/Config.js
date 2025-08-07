@@ -33,14 +33,6 @@ class Config {
                 token: process.env.NASA_TOKEN,
                 baseUrl: 'https://api.nasa.gov'
             },
-            marketaux: {
-                token: process.env.MARKETAUX_TOKEN || 'aog7a5WspsPXku6fx0KVHlDmAfkssynGf5eW2Cq1',
-                baseUrl: 'https://api.marketaux.com/v1'
-            },
-            thenewsapi: {
-                token: process.env.THENEWSAPI_TOKEN || 'njLYUeZaZJjc2COtk7eDzy558aA0OzccJ1XpKzaB',
-                baseUrl: 'https://api.thenewsapi.com/v1'
-            }
         };
 
         this.bot = {
@@ -56,7 +48,7 @@ class Config {
         };
 
         this.endpoints = {
-            enabled: (process.env.ENABLED_ENDPOINTS || 'reddit,congress,marketaux,thenewsapi').split(',').map(e => e.trim()),
+            enabled: (process.env.ENABLED_ENDPOINTS || 'reddit,congress').split(',').map(e => e.trim()),
             weights: this.parseWeights(process.env.ENDPOINT_WEIGHTS),
             reddit: {
                 defaultSources: [

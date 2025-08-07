@@ -157,6 +157,9 @@ class RedditEndpoint extends BaseEndpoint {
                 // Skip if author doesn't match (unless 'any')
                 if (author !== 'any' && postAuthor !== author) continue;
 
+                // Skip if already seen
+                if (this.hasSeenItem(postId)) continue;
+
                 // Validate that post comes from an approved source subreddit
                 if (!this.isFromApprovedSource(jsonUrl, postSubreddit)) {
                     this.markItemAsSeen(postId);
@@ -168,9 +171,6 @@ class RedditEndpoint extends BaseEndpoint {
                     this.markItemAsSeen(postId);
                     continue;
                 }
-
-                // Skip if already seen
-                if (this.hasSeenItem(postId)) continue;
 
                 // Check for similarity if vector embedding is enabled
                 if (this.vectorEmbeddingEnabled && this.similarityChecker) {
