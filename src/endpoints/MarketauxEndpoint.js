@@ -127,6 +127,13 @@ class MarketauxEndpoint extends BaseEndpoint {
                 // Skip if already seen
                 if (this.hasSeenItem(articleId)) continue;
                 
+                // Validate that content is in English
+                if (!this.isEnglishContent(article)) {
+                    this.logDebug(`Skipping non-English article: "${article.title?.substring(0, 50)}..."`);
+                    this.markItemAsSeen(articleId);
+                    continue;
+                }
+                
                 // Mark as seen
                 this.markItemAsSeen(articleId);
                 
@@ -157,7 +164,7 @@ class MarketauxEndpoint extends BaseEndpoint {
                 }
                 
                 return {
-                    title: `💰 MARKET NEWS: ${article.title}`,
+                    title: `Title: ${article.title}`,
                     url: article.url,
                     description: article.description || '',
                     details: details
@@ -180,6 +187,35 @@ class MarketauxEndpoint extends BaseEndpoint {
             hour: '2-digit',
             minute: '2-digit'
         });
+    }
+
+    isEnglishContent(article) {
+        // First check if the API language field indicates English
+        if (article.language && article.language !== 'en') {
+            return false;
+        }
+        
+        // Basic English text validation using common English patterns
+        const textToCheck = `${article.title || ''} ${article.description || ''}`.toLowerCase();
+        
+        // Skip if text is too short to validate
+        if (textToCheck.trim().length < 10) {
+            return true; // Assume English for very short content
+        }
+        
+        // Common English words that are rarely found in other languages
+        const englishIndicators = [
+            'the', 'and', 'for', 'are', 'with', 'that', 'this', 'from', 'they', 'have',
+            'been', 'their', 'said', 'each', 'which', 'what', 'will', 'there', 'could'
+        ];
+        
+        // Count English indicators
+        const englishWordCount = englishIndicators.reduce((count, word) => {
+            return count + (textToCheck.includes(` ${word} `) || textToCheck.startsWith(`${word} `) ? 1 : 0);
+        }, 0);
+        
+        // Require at least 2 common English words for longer content
+        return englishWordCount >= 2;
     }
 
     getRemainingRequests() {
