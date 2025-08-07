@@ -152,12 +152,20 @@ class NewsBot extends EventEmitter {
     }
 
     async sendNews(newsItem) {
-        let messageContent;
-        if (newsItem.details) {
-            messageContent = `${newsItem.title}\n${newsItem.details}\nURL: ${newsItem.url}`;
-        } else {
-            messageContent = `Title: ${newsItem.title}\nURL: ${newsItem.url}`;
+        let messageContent = newsItem.title;
+        
+        // Add description if available
+        if (newsItem.description && newsItem.description.trim()) {
+            messageContent += `\n\n${newsItem.description}`;
         }
+        
+        // Add details if available
+        if (newsItem.details) {
+            messageContent += `\n\n${newsItem.details}`;
+        }
+        
+        // Add URL at the end (Discord will auto-embed)
+        messageContent += `\n\n${newsItem.url}`;
 
         const success = await this.discordService.sendToChannels(messageContent);
         if (success) {

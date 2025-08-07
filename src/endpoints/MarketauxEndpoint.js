@@ -159,6 +159,7 @@ class MarketauxEndpoint extends BaseEndpoint {
                 return {
                     title: `💰 MARKET NEWS: ${article.title}`,
                     url: article.url,
+                    description: article.description || '',
                     details: details
                 };
             }
