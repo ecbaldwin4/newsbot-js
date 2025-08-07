@@ -3,38 +3,33 @@ const BaseEndpoint = require('../core/BaseEndpoint');
 const EmbeddingService = require('../services/EmbeddingService');
 const SimilarityChecker = require('../utils/SimilarityChecker');
 
-class MarketauxEndpoint extends BaseEndpoint {
+class TheNewsAPIEndpoint extends BaseEndpoint {
     constructor(config, dataManager) {
-        super('marketaux', config, dataManager);
-        this.apiConfig = config.getAPIConfig('marketaux');
+        super('thenewsapi', config, dataManager);
+        this.apiConfig = config.getAPIConfig('thenewsapi');
         this.requestTimeout = 15000;
-        this.dailyRequestLimit = 100;
-        this.requestsToday = 0;
-        this.lastRequestDate = '';
         
         // Vector embedding configuration
         this.vectorEmbeddingEnabled = config.getBotConfig().vectorEmbedding !== false;
         this.embeddingService = null;
         this.similarityChecker = null;
         
-        // Set retention period to 7 days for financial news
-        this.dataManager.setRetentionPeriod(this.name, 7 * 24 * 60 * 60);
+        // Set retention period to 24 hours for news articles
+        this.dataManager.setRetentionPeriod(this.name, 24 * 60 * 60);
         
         if (!this.apiConfig.token) {
-            this.logError('Marketaux API token not configured');
+            this.logError('TheNewsAPI token not configured');
             this.setEnabled(false);
         }
     }
 
     async initialize() {
         if (!this.apiConfig.token) {
-            this.logError('Cannot initialize Marketaux endpoint - missing API token');
+            this.logError('Cannot initialize TheNewsAPI endpoint - missing API token');
             return;
         }
 
-        this.logInfo('Initializing Marketaux endpoint...');
-        this.loadRequestCount();
-        this.logInfo(`📊 Daily requests used: ${this.requestsToday}/${this.dailyRequestLimit}`);
+        this.logInfo('Initializing TheNewsAPI endpoint...');
         
         // Initialize vector embedding if enabled
         if (this.vectorEmbeddingEnabled) {
@@ -74,60 +69,9 @@ class MarketauxEndpoint extends BaseEndpoint {
             }
         }
         
+        this.logInfo('TheNewsAPI endpoint initialized');
         if (this.vectorEmbeddingEnabled) {
             this.logInfo('🧠 Vector embedding enabled for similarity detection');
-        }
-    }
-
-    loadRequestCount() {
-        const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-        
-        try {
-            const data = this.dataManager.loadCSVData('marketaux_request_count.csv', line => {
-                const [date, count] = line.split(',');
-                return { date, count: parseInt(count) || 0 };
-            });
-            
-            const todayData = data.find(item => item.date === today);
-            if (todayData) {
-                this.requestsToday = todayData.count;
-            } else {
-                this.requestsToday = 0;
-            }
-            
-            this.lastRequestDate = today;
-        } catch (error) {
-            this.logDebug('No existing request count data, starting fresh');
-            this.requestsToday = 0;
-            this.lastRequestDate = today;
-        }
-    }
-
-    saveRequestCount() {
-        const today = new Date().toISOString().split('T')[0];
-        const data = [`${today},${this.requestsToday}`];
-        this.dataManager.saveCSVData('marketaux_request_count.csv', data);
-    }
-
-    canMakeRequest() {
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Reset count if it's a new day
-        if (today !== this.lastRequestDate) {
-            this.requestsToday = 0;
-            this.lastRequestDate = today;
-        }
-        
-        return this.requestsToday < this.dailyRequestLimit;
-    }
-
-    incrementRequestCount() {
-        this.requestsToday++;
-        this.saveRequestCount();
-        this.logInfo(`📊 API requests today: ${this.requestsToday}/${this.dailyRequestLimit}`);
-        
-        if (this.requestsToday >= this.dailyRequestLimit) {
-            this.logInfo('⚠️ Daily request limit reached! Endpoint will be inactive until tomorrow.');
         }
     }
 
@@ -136,23 +80,35 @@ class MarketauxEndpoint extends BaseEndpoint {
             return null;
         }
 
-        if (!this.canMakeRequest()) {
-            this.logDebug('Daily request limit reached, skipping fetch');
-            return null;
+        this.logDebug('Fetching TheNewsAPI update...');
+        
+        // Try headlines endpoint first, then top endpoint
+        const endpoints = [
+            { name: 'headlines', url: `${this.apiConfig.baseUrl}/news/headlines` },
+            { name: 'top', url: `${this.apiConfig.baseUrl}/news/top` }
+        ];
+
+        for (const endpoint of endpoints) {
+            const article = await this.fetchFromEndpoint(endpoint);
+            if (article) {
+                return article;
+            }
         }
 
-        this.logDebug('Fetching Marketaux update...');
-        
+        this.logDebug('No new TheNewsAPI articles found');
+        return null;
+    }
+
+    async fetchFromEndpoint(endpoint) {
         try {
-            const url = `${this.apiConfig.baseUrl}/news/all`;
-            this.logInfo(`🌐 Making API call to: ${url}`);
+            const url = endpoint.url;
+            this.logInfo(`🌐 Making API call to: ${url} (${endpoint.name})`);
             
             const response = await axios.get(url, {
                 headers: {
                     'Authorization': `Bearer ${this.apiConfig.token}`
                 },
                 params: {
-                    filter_entities: true,
                     language: 'en',
                     limit: 10,
                     sort: 'published_at:desc'
@@ -160,25 +116,11 @@ class MarketauxEndpoint extends BaseEndpoint {
                 timeout: this.requestTimeout
             });
 
-            this.incrementRequestCount();
+            this.logInfo(`✅ API call completed successfully for: ${url} (found ${response.data?.data?.length || 0} articles)`);
+
+            const articles = response.data?.data || [];
             
-            // Debug: Log the API response structure
-            this.logDebug('API response structure:', Object.keys(response.data || {}));
-            
-            // Extract articles from all categories (general, business, tech, etc.)
-            const allArticles = [];
-            const categories = response.data || {};
-            
-            Object.keys(categories).forEach(category => {
-                if (Array.isArray(categories[category])) {
-                    this.logDebug(`Found ${categories[category].length} articles in category: ${category}`);
-                    allArticles.push(...categories[category]);
-                }
-            });
-            
-            this.logInfo(`✅ API call completed successfully for: ${url} (found ${allArticles.length} articles across all categories)`);
-            
-            for (const article of allArticles) {
+            for (const article of articles) {
                 // Validate article has required fields
                 if (!article || !article.uuid || !article.title || !article.url) {
                     this.logDebug('Skipping article with missing required fields:', article);
@@ -213,7 +155,7 @@ class MarketauxEndpoint extends BaseEndpoint {
                     }
                 }
                 
-                // Mark as seen
+                // Mark as seen and add to similarity checker
                 this.markItemAsSeen(articleId);
                 
                 if (this.vectorEmbeddingEnabled && this.similarityChecker) {
@@ -231,21 +173,10 @@ class MarketauxEndpoint extends BaseEndpoint {
             }
             
         } catch (error) {
-            this.logError(`❌ API call failed for Marketaux`, error);
-            // Don't increment request count on error
+            this.logError(`❌ API call failed for: ${endpoint.url}`, error);
         }
 
-        this.logDebug('No new Marketaux articles found');
         return null;
-    }
-
-    formatDate(dateString) {
-        return new Date(dateString).toLocaleDateString('en-US', {
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
     }
 
     isEnglishContent(article) {
@@ -275,24 +206,6 @@ class MarketauxEndpoint extends BaseEndpoint {
         
         // Require at least 2 common English words for longer content
         return englishWordCount >= 2;
-    }
-
-    getRemainingRequests() {
-        if (!this.canMakeRequest()) {
-            return 0;
-        }
-        return this.dailyRequestLimit - this.requestsToday;
-    }
-
-    getRequestStats() {
-        const today = new Date().toISOString().split('T')[0];
-        return {
-            requestsToday: this.requestsToday,
-            dailyLimit: this.dailyRequestLimit,
-            remaining: this.getRemainingRequests(),
-            date: today,
-            canMakeRequest: this.canMakeRequest()
-        };
     }
 
     isAPIConfigured() {
@@ -331,4 +244,4 @@ class MarketauxEndpoint extends BaseEndpoint {
     }
 }
 
-module.exports = MarketauxEndpoint;
+module.exports = TheNewsAPIEndpoint;

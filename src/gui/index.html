@@ -373,6 +373,37 @@
                 </div>
             </div>
 
+            <!-- TheNewsAPI Endpoint Control -->
+            <div class="card">
+                <h3>📺 TheNewsAPI Endpoint</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="thenewsapi-status">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Weight:</span>
+                    <span class="stat-value" id="thenewsapi-weight">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">API Configured:</span>
+                    <span class="stat-value" id="thenewsapi-api">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Vector Embedding:</span>
+                    <span class="stat-value" id="thenewsapi-embedding">Unknown</span>
+                </div>
+                <div class="input-group">
+                    <label>Weight:</label>
+                    <input type="number" id="thenewsapi-weight-input" min="0" max="10" step="0.1" value="1">
+                    <button class="button" onclick="updateWeight('thenewsapi')">Update</button>
+                </div>
+                <div class="button-group">
+                    <button class="button success" onclick="toggleEndpoint('thenewsapi', true)">Enable</button>
+                    <button class="button danger" onclick="toggleEndpoint('thenewsapi', false)">Disable</button>
+                    <button class="button" onclick="fetchNews('thenewsapi')">Fetch Now</button>
+                </div>
+            </div>
+
             <!-- Reddit Sources Management -->
             <div class="card">
                 <h3>📋 Reddit Sources</h3>
@@ -399,6 +430,8 @@
                 <div class="button-group">
                     <button class="button" onclick="fetchNews('reddit')">Fetch Reddit</button>
                     <button class="button" onclick="fetchNews('congress')">Fetch Congress</button>
+                    <button class="button" onclick="fetchNews('marketaux')">Fetch Marketaux</button>
+                    <button class="button" onclick="fetchNews('thenewsapi')">Fetch TheNewsAPI</button>
                     <button class="button" onclick="refreshStatus()">Refresh Status</button>
                 </div>
                 <div id="manual-result" class="alert" style="display: none;"></div>
@@ -484,6 +517,14 @@
             const requestStats = marketaux.requestStats || { requestsToday: 0, dailyLimit: 100, remaining: 100 };
             document.getElementById('marketaux-requests').textContent = 
                 `${requestStats.requestsToday}/${requestStats.dailyLimit} (${requestStats.remaining} remaining)`;
+
+            // TheNewsAPI Endpoint
+            const thenewsapi = status.endpoints?.thenewsapi || {};
+            document.getElementById('thenewsapi-status').textContent = thenewsapi.enabled ? 'Enabled' : 'Disabled';
+            document.getElementById('thenewsapi-weight').textContent = thenewsapi.weight || 0;
+            document.getElementById('thenewsapi-api').textContent = thenewsapi.apiConfigured ? 'Yes' : 'No';
+            document.getElementById('thenewsapi-embedding').textContent = thenewsapi.vectorEmbedding?.enabled ? 'Enabled' : 'Disabled';
+            document.getElementById('thenewsapi-weight-input').value = thenewsapi.weight || 1;
 
             // Vector Embedding
             const embedding = reddit.vectorEmbedding || {};
