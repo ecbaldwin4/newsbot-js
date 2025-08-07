@@ -130,10 +130,12 @@ class RedditEndpoint extends BaseEndpoint {
         const thresholdTimestamp = Math.floor(Date.now() / 1000) - 24 * 60 * 60; // 24 hours ago
 
         try {
+            this.logInfo(`🌐 Making API call to: ${jsonUrl}`);
             const response = await axios.get(jsonUrl, {
                 headers: { 'User-Agent': this.userAgent },
                 timeout: this.requestTimeout
             });
+            this.logInfo(`✅ API call completed successfully for: ${jsonUrl}`);
 
             const posts = response.data?.data?.children || [];
 
@@ -175,7 +177,7 @@ class RedditEndpoint extends BaseEndpoint {
                     const similarityResult = await this.similarityChecker.checkSimilarity(title);
                     
                     if (similarityResult.isSimilar) {
-                        this.logDebug(`Skipping similar headline: "${title.substring(0, 50)}..." (${similarityResult.similarity.toFixed(3)} similarity with "${similarityResult.similarHeadline?.substring(0, 50)}...")`);
+                        this.logInfo(`🔄 REJECTED - Similar headline: "${title}" (similarity: ${(similarityResult.similarity * 100).toFixed(1)}% with "${similarityResult.similarHeadline}")`);
                         this.markItemAsSeen(postId);
                         continue;
                     }
@@ -193,10 +195,10 @@ class RedditEndpoint extends BaseEndpoint {
             }
         } catch (error) {
             if (error.response?.status === 429) {
-                this.logError(`Rate limited by Reddit for ${jsonUrl}. Waiting 60 seconds...`);
+                this.logError(`❌ Rate limited by Reddit for ${jsonUrl}. Waiting 60 seconds...`);
                 await new Promise(resolve => setTimeout(resolve, 60000)); // Wait 1 minute on rate limit
             } else {
-                this.logError(`Error fetching from ${jsonUrl}`, error);
+                this.logError(`❌ API call failed for: ${jsonUrl}`, error);
             }
         }
 
