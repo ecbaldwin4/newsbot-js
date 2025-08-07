@@ -63,18 +63,18 @@ class CongressEndpoint extends BaseEndpoint {
     async getRecentBillUpdate() {
         for (const billType of this.billTypes) {
             try {
-                const response = await axios.get(
-                    `${this.apiConfig.baseUrl}/bill/${this.apiConfig.currentCongress}/${billType}`,
-                    {
-                        headers: { 'X-API-Key': this.apiConfig.token },
-                        params: {
-                            format: 'json',
-                            limit: 20,
-                            sort: 'updateDateIncludingText:desc'
-                        },
-                        timeout: this.requestTimeout
-                    }
-                );
+                const url = `${this.apiConfig.baseUrl}/bill/${this.apiConfig.currentCongress}/${billType}`;
+                this.logInfo(`🌐 Making API call to: ${url} (${billType} bills)`);
+                const response = await axios.get(url, {
+                    headers: { 'X-API-Key': this.apiConfig.token },
+                    params: {
+                        format: 'json',
+                        limit: 20,
+                        sort: 'updateDateIncludingText:desc'
+                    },
+                    timeout: this.requestTimeout
+                });
+                this.logInfo(`✅ API call completed successfully for: ${url} (found ${response.data?.bills?.length || 0} bills)`);
 
                 const bills = response.data?.bills || [];
                 
@@ -157,18 +157,18 @@ class CongressEndpoint extends BaseEndpoint {
     async getRecentVote() {
         try {
             // Try House votes first (new beta endpoint)
-            const houseResponse = await axios.get(
-                `${this.apiConfig.baseUrl}/house-vote/${this.apiConfig.currentCongress}`,
-                {
-                    headers: { 'X-API-Key': this.apiConfig.token },
-                    params: {
-                        format: 'json',
-                        limit: 10,
-                        sort: 'date:desc'
-                    },
-                    timeout: this.requestTimeout
-                }
-            );
+            const url = `${this.apiConfig.baseUrl}/house-vote/${this.apiConfig.currentCongress}`;
+            this.logInfo(`🌐 Making API call to: ${url} (House votes)`);
+            const houseResponse = await axios.get(url, {
+                headers: { 'X-API-Key': this.apiConfig.token },
+                params: {
+                    format: 'json',
+                    limit: 10,
+                    sort: 'date:desc'
+                },
+                timeout: this.requestTimeout
+            });
+            this.logInfo(`✅ API call completed successfully for: ${url} (found ${houseResponse.data?.houseVotes?.length || 0} votes)`);
 
             const houseVotes = houseResponse.data?.houseVotes || [];
             
@@ -206,14 +206,14 @@ class CongressEndpoint extends BaseEndpoint {
         }
 
         try {
-            const response = await axios.get(
-                `${this.apiConfig.baseUrl}/bill/${congress}/${billType}/${billNumber}`,
-                {
-                    headers: { 'X-API-Key': this.apiConfig.token },
-                    params: { format: 'json' },
-                    timeout: this.requestTimeout
-                }
-            );
+            const url = `${this.apiConfig.baseUrl}/bill/${congress}/${billType}/${billNumber}`;
+            this.logInfo(`🌐 Making API call to: ${url} (Bill details)`);
+            const response = await axios.get(url, {
+                headers: { 'X-API-Key': this.apiConfig.token },
+                params: { format: 'json' },
+                timeout: this.requestTimeout
+            });
+            this.logInfo(`✅ API call completed successfully for: ${url}`);
 
             return response.data?.bill || null;
         } catch (error) {
