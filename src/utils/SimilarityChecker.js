@@ -34,10 +34,10 @@ class SimilarityChecker {
 
             // Load embeddings for valid headlines in batches to prevent hanging
             if (validHeadlines.length > 0) {
-                // Limit to most recent 50 headlines at startup to prevent overwhelming the system
+                // Limit to most recent 10 headlines at startup to reduce CPU load
                 const headlinesToLoad = validHeadlines
                     .sort((a, b) => b.timestamp - a.timestamp) // Sort by newest first
-                    .slice(0, 50); // Limit to 50 most recent
+                    .slice(0, 10); // Limit to 10 most recent
                 
                 this.logger.debug(`Loading embeddings for ${headlinesToLoad.length} most recent headlines`);
                 
