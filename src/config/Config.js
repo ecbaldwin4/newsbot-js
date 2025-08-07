@@ -32,6 +32,10 @@ class Config {
             nasa: {
                 token: process.env.NASA_TOKEN,
                 baseUrl: 'https://api.nasa.gov'
+            },
+            marketaux: {
+                token: process.env.MARKETAUX_TOKEN || 'aog7a5WspsPXku6fx0KVHlDmAfkssynGf5eW2Cq1',
+                baseUrl: 'https://api.marketaux.com/v1'
             }
         };
 

@@ -11,6 +11,7 @@ const Logger = require('./src/utils/Logger');
 const RedditEndpoint = require('./src/endpoints/RedditEndpoint');
 const CongressEndpoint = require('./src/endpoints/CongressEndpoint');
 const AsteroidEndpoint = require('./src/endpoints/AsteroidEndpoint');
+const MarketauxEndpoint = require('./src/endpoints/MarketauxEndpoint');
 
 class Application {
     constructor() {
@@ -104,6 +105,12 @@ class Application {
         if (endpointConfig.enabled.includes('asteroid')) {
             const asteroidEndpoint = new AsteroidEndpoint(config, dataManager);
             this.newsBot.registerEndpoint(asteroidEndpoint);
+        }
+
+        // Register Marketaux endpoint
+        if (endpointConfig.enabled.includes('marketaux')) {
+            const marketauxEndpoint = new MarketauxEndpoint(config, dataManager);
+            this.newsBot.registerEndpoint(marketauxEndpoint);
         }
 
         this.logger.info(`Registered ${this.newsBot.getEnabledEndpoints().length} enabled endpoints`);

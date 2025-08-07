@@ -342,6 +342,37 @@
                 </div>
             </div>
 
+            <!-- Marketaux Endpoint Control -->
+            <div class="card">
+                <h3>💰 Marketaux Endpoint</h3>
+                <div class="stat">
+                    <span class="stat-label">Status:</span>
+                    <span class="stat-value" id="marketaux-status">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Weight:</span>
+                    <span class="stat-value" id="marketaux-weight">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">API Configured:</span>
+                    <span class="stat-value" id="marketaux-api">Unknown</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-label">Requests Today:</span>
+                    <span class="stat-value" id="marketaux-requests">0/100</span>
+                </div>
+                <div class="input-group">
+                    <label>Weight:</label>
+                    <input type="number" id="marketaux-weight-input" min="0" max="10" step="0.1" value="1">
+                    <button class="button" onclick="updateWeight('marketaux')">Update</button>
+                </div>
+                <div class="button-group">
+                    <button class="button success" onclick="toggleEndpoint('marketaux', true)">Enable</button>
+                    <button class="button danger" onclick="toggleEndpoint('marketaux', false)">Disable</button>
+                    <button class="button" onclick="fetchNews('marketaux')">Fetch Now</button>
+                </div>
+            </div>
+
             <!-- Reddit Sources Management -->
             <div class="card">
                 <h3>📋 Reddit Sources</h3>
@@ -441,6 +472,18 @@
             document.getElementById('current-congress').textContent = congress.currentCongress || 'Unknown';
             document.getElementById('congress-api').textContent = congress.apiConfigured ? 'Yes' : 'No';
             document.getElementById('congress-weight-input').value = congress.weight || 1;
+
+            // Marketaux Endpoint
+            const marketaux = status.endpoints?.marketaux || {};
+            document.getElementById('marketaux-status').textContent = marketaux.enabled ? 'Enabled' : 'Disabled';
+            document.getElementById('marketaux-weight').textContent = marketaux.weight || 0;
+            document.getElementById('marketaux-api').textContent = marketaux.apiConfigured ? 'Yes' : 'No';
+            document.getElementById('marketaux-weight-input').value = marketaux.weight || 1;
+            
+            // Update request stats
+            const requestStats = marketaux.requestStats || { requestsToday: 0, dailyLimit: 100, remaining: 100 };
+            document.getElementById('marketaux-requests').textContent = 
+                `${requestStats.requestsToday}/${requestStats.dailyLimit} (${requestStats.remaining} remaining)`;
 
             // Vector Embedding
             const embedding = reddit.vectorEmbedding || {};

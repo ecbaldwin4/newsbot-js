@@ -40,6 +40,7 @@ class WebGUIService {
                 const status = this.newsBot.getStatus();
                 const redditEndpoint = this.newsBot.getEndpoint('reddit');
                 const congressEndpoint = this.newsBot.getEndpoint('congress');
+                const marketauxEndpoint = this.newsBot.getEndpoint('marketaux');
                 
                 const response = {
                     ...status,
@@ -55,6 +56,12 @@ class WebGUIService {
                             weight: congressEndpoint?.getWeight() || 0,
                             currentCongress: congressEndpoint?.getCurrentCongress() || 119,
                             apiConfigured: congressEndpoint?.isAPIConfigured() || false
+                        },
+                        marketaux: {
+                            enabled: marketauxEndpoint?.isEndpointEnabled() || false,
+                            weight: marketauxEndpoint?.getWeight() || 0,
+                            apiConfigured: marketauxEndpoint?.isAPIConfigured() || false,
+                            requestStats: marketauxEndpoint?.getRequestStats() || { requestsToday: 0, dailyLimit: 100, remaining: 100 }
                         }
                     }
                 };
