@@ -175,7 +175,7 @@ class NewsBot extends EventEmitter {
         }
         
         // Add URL at the end (Discord will auto-embed)
-        messageContent += `\n\n${newsItem.url}`;
+        messageContent += `\n\nURL: ${newsItem.url}`;
 
         const success = await this.discordService.sendToChannels(messageContent);
         if (success) {

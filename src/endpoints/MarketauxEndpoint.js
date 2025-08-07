@@ -112,11 +112,30 @@ class MarketauxEndpoint extends BaseEndpoint {
             });
 
             this.incrementRequestCount();
-            this.logInfo(`✅ API call completed successfully for: ${url} (found ${response.data?.data?.length || 0} articles)`);
-
-            const articles = response.data?.data || [];
             
-            for (const article of articles) {
+            // Debug: Log the API response structure
+            this.logDebug('API response structure:', Object.keys(response.data || {}));
+            
+            // Extract articles from all categories (general, business, tech, etc.)
+            const allArticles = [];
+            const categories = response.data || {};
+            
+            Object.keys(categories).forEach(category => {
+                if (Array.isArray(categories[category])) {
+                    this.logDebug(`Found ${categories[category].length} articles in category: ${category}`);
+                    allArticles.push(...categories[category]);
+                }
+            });
+            
+            this.logInfo(`✅ API call completed successfully for: ${url} (found ${allArticles.length} articles across all categories)`);
+            
+            for (const article of allArticles) {
+                // Validate article has required fields
+                if (!article || !article.uuid || !article.title || !article.url) {
+                    this.logDebug('Skipping article with missing required fields:', article);
+                    continue;
+                }
+                
                 const articleId = article.uuid;
                 const publishedAt = new Date(article.published_at);
                 const hoursSincePublished = (Date.now() - publishedAt.getTime()) / (1000 * 60 * 60);
@@ -137,37 +156,12 @@ class MarketauxEndpoint extends BaseEndpoint {
                 // Mark as seen
                 this.markItemAsSeen(articleId);
                 
-                // Build details string
-                let details = `Published: ${this.formatDate(article.published_at)}`;
-                
-                // Add source information
-                if (article.source) {
-                    details += `\nSource: ${article.source}`;
-                }
-                
-                // Add entities (companies, people, etc.)
-                if (article.entities && article.entities.length > 0) {
-                    const entityNames = article.entities
-                        .filter(e => e.name && e.relevance_score > 0.7)
-                        .slice(0, 3) // Limit to top 3 most relevant
-                        .map(e => e.name);
-                    
-                    if (entityNames.length > 0) {
-                        details += `\nRelated: ${entityNames.join(', ')}`;
-                    }
-                }
-                
-                // Add sentiment if available
-                if (article.sentiment && article.sentiment !== 'neutral') {
-                    const sentimentEmoji = article.sentiment === 'positive' ? '📈' : '📉';
-                    details += `\nSentiment: ${sentimentEmoji} ${article.sentiment}`;
-                }
+                this.logDebug(`Selected article: "${article.title}" from ${article.source}`);
                 
                 return {
                     title: `Title: ${article.title}`,
                     url: article.url,
-                    description: article.description || '',
-                    details: details
+                    description: `Description: ${article.description || 'No description available'}`
                 };
             }
             
